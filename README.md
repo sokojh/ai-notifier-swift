@@ -19,91 +19,81 @@ Built with Swift using `UNUserNotificationCenter` for maximum compatibility with
 
 ## Installation
 
-### Build from source
+### One-liner (권장)
+
+```bash
+rm -rf /tmp/ai-notifier-swift && git clone https://github.com/sokojh/ai-notifier-swift.git /tmp/ai-notifier-swift && /tmp/ai-notifier-swift/install.sh
+```
+
+설치 스크립트가 자동으로:
+1. Swift 앱 빌드 (Universal Binary)
+2. `/Applications/ai-notifier.app` 설치
+3. Claude Code, Gemini CLI, Codex CLI hook 자동 설정
+4. 알림 권한 설정 안내
+
+### 수동 설치
 
 ```bash
 git clone https://github.com/sokojh/ai-notifier-swift.git
 cd ai-notifier-swift
 ./build.sh
 cp -r .build/ai-notifier.app /Applications/
-```
-
-### One-liner
-
-```bash
-rm -rf /tmp/ai-notifier-swift && git clone https://github.com/sokojh/ai-notifier-swift.git /tmp/ai-notifier-swift && /tmp/ai-notifier-swift/build.sh && cp -r /tmp/ai-notifier-swift/.build/ai-notifier.app /Applications/ && codesign --force --deep --sign - /Applications/ai-notifier.app
+codesign --force --deep --sign - /Applications/ai-notifier.app
+# 이후 수동으로 CLI hook 설정 필요 (아래 참조)
 ```
 
 ## Usage
-
-The app reads JSON data from stdin and sends a notification.
 
 ```bash
 # Test notification
 echo '{}' | /Applications/ai-notifier.app/Contents/MacOS/ai-notifier
 ```
 
-### CLI Hook Configuration
+## CLI Hook Configuration (수동 설치 시)
 
-#### Claude Code
+`install.sh` 사용 시 자동 설정됨. 수동 설치한 경우만 참조하세요.
 
-Add to `~/.claude/settings.json`:
+<details>
+<summary>Claude Code</summary>
+
+`~/.claude/settings.json`:
 
 ```json
 {
   "hooks": {
-    "Stop": [
-      {
-        "hooks": [
-          {"type": "command", "command": "/Applications/ai-notifier.app/Contents/MacOS/ai-notifier"}
-        ]
-      }
-    ],
-    "Notification": [
-      {
-        "matcher": "permission_prompt",
-        "hooks": [
-          {"type": "command", "command": "/Applications/ai-notifier.app/Contents/MacOS/ai-notifier"}
-        ]
-      }
-    ]
+    "Stop": [{"hooks": [{"type": "command", "command": "/Applications/ai-notifier.app/Contents/MacOS/ai-notifier"}]}],
+    "Notification": [{"matcher": "permission_prompt", "hooks": [{"type": "command", "command": "/Applications/ai-notifier.app/Contents/MacOS/ai-notifier"}]}]
   }
 }
 ```
+</details>
 
-#### Gemini CLI
+<details>
+<summary>Gemini CLI</summary>
 
-Add to `~/.gemini/settings.json`:
+`~/.gemini/settings.json`:
 
 ```json
 {
   "tools": {"enableHooks": true},
   "hooks": {
     "enabled": true,
-    "AfterModel": [
-      {
-        "hooks": [
-          {
-            "name": "ai-notifier",
-            "type": "command",
-            "command": "/Applications/ai-notifier.app/Contents/MacOS/ai-notifier",
-            "timeout": 5000
-          }
-        ]
-      }
-    ]
+    "AfterModel": [{"hooks": [{"name": "ai-notifier", "type": "command", "command": "/Applications/ai-notifier.app/Contents/MacOS/ai-notifier", "timeout": 5000}]}]
   }
 }
 ```
+</details>
 
-#### Codex CLI
+<details>
+<summary>Codex CLI</summary>
 
-Add to `~/.codex/config.toml`:
+`~/.codex/config.toml`:
 
 ```toml
 [notice]
 notify = ["/Applications/ai-notifier.app/Contents/MacOS/ai-notifier"]
 ```
+</details>
 
 ## Notification Permission
 
