@@ -87,6 +87,7 @@ chmod +x "$APP_BUNDLE/Contents/MacOS/${EXECUTABLE_NAME}"
 # Copy icons
 if [ -d "$SCRIPT_DIR/Resources" ]; then
     cp "$SCRIPT_DIR/Resources/"*.png "$APP_BUNDLE/Contents/Resources/" 2>/dev/null || true
+    cp "$SCRIPT_DIR/Resources/"*.icns "$APP_BUNDLE/Contents/Resources/" 2>/dev/null || true
     echo "Icon resources copied"
 fi
 
@@ -120,6 +121,8 @@ cat > "$APP_BUNDLE/Contents/Info.plist" << EOF
     <string>alert</string>
     <key>NSHighResolutionCapable</key>
     <true/>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
 </dict>
 </plist>
 EOF
