@@ -194,18 +194,23 @@ struct TerminalActivator {
             task.waitUntilExit()
         }
 
-        // Bring VS Code to front and focus terminal (Ctrl+`)
+        // Bring VS Code to front
         runAppleScript("""
         tell application "Visual Studio Code"
             activate
         end tell
         tell application "System Events"
             set frontmost of process "Code" to true
-            delay 0.3
-            -- Send Ctrl+` to focus terminal
-            keystroke "`" using control down
         end tell
         """)
+
+        // Focus terminal using VS Code URL scheme
+        let task = Process()
+        task.launchPath = "/usr/bin/open"
+        task.arguments = ["vscode://vscode.workbench.action.terminal.focus"]
+        task.standardOutput = FileHandle.nullDevice
+        task.standardError = FileHandle.nullDevice
+        try? task.run()
     }
 
     private static func activateTerminalApp(tty: String?) {
