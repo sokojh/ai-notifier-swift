@@ -143,42 +143,43 @@ struct TerminalActivator {
 
     private static func activateITerm2(sessionId: String?) {
         // AppleScript to activate iTerm2 and optionally select session
-        var script = """
-        tell application "iTerm2"
-            activate
-        """
-
         if let sessionId = sessionId {
             // ITERM_SESSION_ID format: w0t0p0:UUID
             // Extract just the UUID part if present
             let uuid = sessionId.contains(":") ? String(sessionId.split(separator: ":").last ?? "") : sessionId
             if !uuid.isEmpty {
-                script += """
-
-                    try
-                        repeat with w in windows
-                            repeat with t in tabs of w
-                                repeat with s in sessions of t
-                                    if unique id of s contains "\(uuid)" then
-                                        select s
-                                        select t
-                                        set index of w to 1
-                                        return
-                                    end if
-                                end repeat
+                let script = """
+                tell application "iTerm2"
+                    repeat with w in windows
+                        repeat with t in tabs of w
+                            repeat with s in sessions of t
+                                if unique id of s is "\(uuid)" then
+                                    select t
+                                    set index of w to 1
+                                end if
                             end repeat
                         end repeat
-                    end try
+                    end repeat
+                    activate
+                end tell
+                tell application "System Events"
+                    set frontmost of process "iTerm2" to true
+                end tell
                 """
+                runAppleScript(script)
+                return
             }
         }
 
-        script += """
-
+        // Fallback: just activate iTerm2
+        runAppleScript("""
+        tell application "iTerm2"
+            activate
         end tell
-        """
-
-        runAppleScript(script)
+        tell application "System Events"
+            set frontmost of process "iTerm2" to true
+        end tell
+        """)
     }
 
     private static func activateVSCode(cwd: String?) {
@@ -190,43 +191,49 @@ struct TerminalActivator {
             task.standardOutput = FileHandle.nullDevice
             task.standardError = FileHandle.nullDevice
             try? task.run()
-        } else {
-            // Just activate VS Code app
-            runAppleScript("""
-            tell application "Visual Studio Code"
-                activate
-            end tell
-            """)
+            task.waitUntilExit()
         }
+
+        // Bring VS Code to front and focus terminal (Ctrl+`)
+        runAppleScript("""
+        tell application "Visual Studio Code"
+            activate
+        end tell
+        tell application "System Events"
+            set frontmost of process "Code" to true
+            delay 0.3
+            -- Send Ctrl+` to focus terminal
+            keystroke "`" using control down
+        end tell
+        """)
     }
 
     private static func activateTerminalApp(tty: String?) {
         var script = """
         tell application "Terminal"
-            activate
         """
 
         if let tty = tty, !tty.isEmpty {
             // Select the specific tab by TTY
             script += """
 
-                try
-                    repeat with w in windows
-                        repeat with t in tabs of w
-                            if tty of t is "\(tty)" then
-                                set selected tab of w to t
-                                set frontmost of w to true
-                                set index of w to 1
-                                return
-                            end if
-                        end repeat
+                repeat with w in windows
+                    repeat with t in tabs of w
+                        if tty of t is "\(tty)" then
+                            set selected tab of w to t
+                            set index of w to 1
+                        end if
                     end repeat
-                end try
+                end repeat
             """
         }
 
         script += """
 
+            activate
+        end tell
+        tell application "System Events"
+            set frontmost of process "Terminal" to true
         end tell
         """
 
@@ -234,12 +241,27 @@ struct TerminalActivator {
     }
 
     private static func runAppleScript(_ script: String) {
+        debugLog("Running AppleScript: \(script.prefix(100))...")
         let task = Process()
         task.launchPath = "/usr/bin/osascript"
         task.arguments = ["-e", script]
+
+        let errorPipe = Pipe()
         task.standardOutput = FileHandle.nullDevice
-        task.standardError = FileHandle.nullDevice
-        try? task.run()
+        task.standardError = errorPipe
+
+        do {
+            try task.run()
+            task.waitUntilExit()
+
+            let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
+            if let errorStr = String(data: errorData, encoding: .utf8), !errorStr.isEmpty {
+                debugLog("AppleScript error: \(errorStr)")
+            }
+            debugLog("AppleScript exit code: \(task.terminationStatus)")
+        } catch {
+            debugLog("AppleScript failed to run: \(error)")
+        }
     }
 }
 
@@ -403,22 +425,17 @@ struct HookDataParser {
 
     /// Parse notification content from hook data
     static func parseNotification(from data: [String: Any]?, cli: CLISource) -> NotificationContent? {
+        // No data = no notification (e.g., app relaunched for notification click handling)
+        guard let data = data else {
+            return nil
+        }
+
         let projectName = ProjectInfo.getProjectName(from: data)
         let title = "\(cli.displayName) - \(projectName)"
 
         // Capture terminal info for click-to-activate
-        let cwd = data?["cwd"] as? String
+        let cwd = data["cwd"] as? String
         let terminalInfo = TerminalInfo.capture(cwd: cwd)
-
-        guard let data = data else {
-            return NotificationContent(
-                title: title,
-                subtitle: "응답 완료",
-                body: "응답을 확인하세요",
-                cli: cli,
-                terminalInfo: terminalInfo
-            )
-        }
 
         switch cli {
         case .claude:
@@ -725,6 +742,7 @@ struct HookDataParser {
 class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     static let shared = NotificationManager()
     private let center = UNUserNotificationCenter.current()
+    var didHandleNotificationClick = false
 
     override init() {
         super.init()
@@ -805,13 +823,35 @@ class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
+        debugLog("Notification clicked! Action: \(response.actionIdentifier)")
+        didHandleNotificationClick = true
+
         // Handle notification click
         let userInfo = response.notification.request.content.userInfo
-        if let terminalDict = userInfo as? [String: String] {
-            let terminalInfo = TerminalInfo.from(dictionary: terminalDict)
-            TerminalActivator.activate(terminalInfo)
+        debugLog("UserInfo: \(userInfo)")
+
+        // Extract terminal info from userInfo (handle [AnyHashable: Any] type)
+        var terminalDict: [String: String] = [:]
+        for (key, value) in userInfo {
+            if let keyStr = key as? String, let valueStr = value as? String {
+                terminalDict[keyStr] = valueStr
+            }
         }
+
+        if !terminalDict.isEmpty {
+            let terminalInfo = TerminalInfo.from(dictionary: terminalDict)
+            debugLog("Terminal info: type=\(terminalInfo.type), sessionId=\(terminalInfo.sessionId ?? "nil"), tty=\(terminalInfo.tty ?? "nil"), cwd=\(terminalInfo.cwd ?? "nil")")
+            TerminalActivator.activate(terminalInfo)
+        } else {
+            debugLog("No terminal info in userInfo")
+        }
+
         completionHandler()
+
+        // Exit after handling
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            exit(0)
+        }
     }
 
     func userNotificationCenter(
@@ -918,6 +958,39 @@ func debugLog(_ message: String) {
     }
 }
 
+// MARK: - URL Scheme Handler
+
+func handleURLScheme(_ urlString: String) {
+    debugLog("Handling URL scheme: \(urlString)")
+
+    guard let url = URL(string: urlString),
+          let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+        debugLog("Invalid URL")
+        return
+    }
+
+    // Parse query parameters
+    var params: [String: String] = [:]
+    for item in components.queryItems ?? [] {
+        if let value = item.value {
+            params[item.name] = value
+        }
+    }
+
+    debugLog("URL params: \(params)")
+
+    // Reconstruct terminal info from URL params
+    let terminalInfo = TerminalInfo(
+        type: TerminalType(rawValue: params["type"] ?? "") ?? .unknown,
+        sessionId: params["sessionId"],
+        cwd: params["cwd"],
+        tty: params["tty"]
+    )
+
+    debugLog("Activating terminal: \(terminalInfo.type)")
+    TerminalActivator.activate(terminalInfo)
+}
+
 // MARK: - Main Entry Point
 
 func main() {
@@ -925,6 +998,16 @@ func main() {
     if CommandLine.arguments.contains("--setup") || CommandLine.arguments.contains("-s") {
         runSetupMode()
         return
+    }
+
+    // Check for URL scheme activation (ai-notifier://activate?...)
+    if CommandLine.arguments.count > 1 {
+        let arg = CommandLine.arguments[1]
+        if arg.hasPrefix("ai-notifier://") {
+            debugLog("=== URL scheme activation ===")
+            handleURLScheme(arg)
+            exit(0)
+        }
     }
 
     debugLog("=== ai-notifier started ===")
@@ -952,18 +1035,28 @@ func main() {
         debugLog("Checking stdin... isatty=\(isatty(FileHandle.standardInput.fileDescriptor))")
         // Check if stdin has data (non-TTY)
         if isatty(FileHandle.standardInput.fileDescriptor) == 0 {
-            if let inputString = readLine(strippingNewline: false) {
-                var fullInput = inputString
-                while let line = readLine(strippingNewline: false) {
-                    fullInput += line
-                }
-                debugLog("Stdin received: \(fullInput.prefix(200))...")
+            // Use poll() to check if data is available without blocking
+            let stdinFd = FileHandle.standardInput.fileDescriptor
+            var pollFd = pollfd(fd: stdinFd, events: Int16(POLLIN), revents: 0)
+            let pollResult = poll(&pollFd, 1, 100)  // 100ms timeout
 
-                if let data = fullInput.data(using: .utf8),
-                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                    inputData = json
-                    debugLog("Parsed from stdin: \(json.keys)")
+            if pollResult > 0 && (pollFd.revents & Int16(POLLIN)) != 0 {
+                // Data is available, read it
+                if let inputString = readLine(strippingNewline: false) {
+                    var fullInput = inputString
+                    while let line = readLine(strippingNewline: false) {
+                        fullInput += line
+                    }
+                    debugLog("Stdin received: \(fullInput.prefix(200))...")
+
+                    if let data = fullInput.data(using: .utf8),
+                       let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                        inputData = json
+                        debugLog("Parsed from stdin: \(json.keys)")
+                    }
                 }
+            } else {
+                debugLog("No stdin data available (poll returned \(pollResult))")
             }
         }
     }
@@ -974,12 +1067,41 @@ func main() {
 
     // Parse notification content
     guard let content = HookDataParser.parseNotification(from: inputData, cli: cli) else {
-        // Nil means skip (e.g., debounced)
-        debugLog("parseNotification returned nil - skipping")
-        exit(0)
+        // No input data = launched from notification click
+        // Wait for delegate callback which contains the specific notification's terminal info
+        debugLog("parseNotification returned nil - waiting for notification click callback")
+
+        // Initialize notification manager (sets up delegate)
+        _ = NotificationManager.shared
+
+        // Use NSApplication for better delegate handling
+        debugLog("Starting NSApplication run loop...")
+        let app = NSApplication.shared
+        app.setActivationPolicy(.accessory)
+
+        // Set timeout to exit
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+            if !NotificationManager.shared.didHandleNotificationClick {
+                debugLog("No notification click received, exiting")
+                exit(0)
+            }
+        }
+
+        app.run()
+        return  // Won't reach here, but for clarity
     }
 
     debugLog("Notification: title=\(content.title), subtitle=\(content.subtitle), body=\(content.body.prefix(50))...")
+    debugLog("TerminalInfo: type=\(content.terminalInfo.type), sessionId=\(content.terminalInfo.sessionId ?? "nil"), tty=\(content.terminalInfo.tty ?? "nil"), cwd=\(content.terminalInfo.cwd ?? "nil")")
+
+    // Save terminal info for notification click handling
+    let lastSessionFile = "/tmp/.ai-notifier-last-session.json"
+    let sessionDict = content.terminalInfo.toDictionary()
+    if let jsonData = try? JSONSerialization.data(withJSONObject: sessionDict),
+       let jsonString = String(data: jsonData, encoding: .utf8) {
+        try? jsonString.write(toFile: lastSessionFile, atomically: true, encoding: .utf8)
+        debugLog("Saved session to \(lastSessionFile)")
+    }
 
     // Send notification
     let semaphore = DispatchSemaphore(value: 0)
