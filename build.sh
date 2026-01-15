@@ -123,6 +123,17 @@ cat > "$APP_BUNDLE/Contents/Info.plist" << EOF
     <true/>
     <key>CFBundleIconFile</key>
     <string>AppIcon</string>
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLName</key>
+            <string>${BUNDLE_ID}</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>ai-notifier</string>
+            </array>
+        </dict>
+    </array>
 </dict>
 </plist>
 EOF
