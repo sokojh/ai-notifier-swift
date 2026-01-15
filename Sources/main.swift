@@ -2,6 +2,15 @@ import Foundation
 import UserNotifications
 import AppKit
 
+// MARK: - Configuration
+
+struct Config {
+    static let previewMaxChars = 120
+    static let previewMaxLines = 2
+    static let debounceMs = 2000  // 2 seconds
+    static let debounceDir = "/tmp"
+}
+
 // MARK: - CLI Types
 
 enum CLISource: String, CaseIterable {
@@ -12,10 +21,10 @@ enum CLISource: String, CaseIterable {
 
     var displayName: String {
         switch self {
-        case .claude: return "Claude Code"
-        case .gemini: return "Gemini CLI"
-        case .codex: return "Codex CLI"
-        case .unknown: return "AI CLI"
+        case .claude: return "Claude"
+        case .gemini: return "Gemini"
+        case .codex: return "Codex"
+        case .unknown: return "AI"
         }
     }
 
@@ -29,14 +38,118 @@ enum CLISource: String, CaseIterable {
     }
 }
 
-// MARK: - Hook Event Types
+// MARK: - Notification Content
 
-enum HookEvent {
-    case stop(transcript: String?)
-    case notification(type: String, message: String?)
-    case agentTurn(response: String?)
-    case afterModel(text: String?)
-    case unknown
+struct NotificationContent {
+    let title: String      // "Claude - project-name"
+    let subtitle: String   // "응답 완료" / "권한 요청" / "입력 대기"
+    let body: String       // Response preview
+    let cli: CLISource
+}
+
+// MARK: - Text Utilities
+
+struct TextUtils {
+    /// Get preview text (max 120 chars, 2 lines)
+    static func getPreviewText(_ content: String?, maxLines: Int = Config.previewMaxLines, maxChars: Int = Config.previewMaxChars) -> String {
+        guard let content = content, !content.isEmpty else { return "" }
+
+        let lines = content.trimmingCharacters(in: .whitespacesAndNewlines).split(separator: "\n", omittingEmptySubsequences: false)
+        var previewLines: [String] = []
+        var totalChars = 0
+
+        for rawLine in lines.prefix(maxLines + 2) {
+            let line = rawLine.trimmingCharacters(in: .whitespaces)
+            if line.isEmpty { continue }
+            if previewLines.count >= maxLines { break }
+
+            if totalChars + line.count > maxChars {
+                let remaining = maxChars - totalChars
+                if remaining > 10 {
+                    previewLines.append(String(line.prefix(remaining)) + "...")
+                }
+                break
+            }
+
+            previewLines.append(line)
+            totalChars += line.count + 1
+        }
+
+        var result = previewLines.joined(separator: " ")
+        if content.count > result.count && !result.hasSuffix("...") {
+            result += "..."
+        }
+
+        return result
+    }
+}
+
+// MARK: - Project Info
+
+struct ProjectInfo {
+    static func getProjectName(from data: [String: Any]? = nil) -> String {
+        // Try cwd from hook data
+        if let cwd = data?["cwd"] as? String {
+            return URL(fileURLWithPath: cwd).lastPathComponent
+        }
+
+        // Try CLAUDE_PROJECT_ROOT
+        if let projectRoot = ProcessInfo.processInfo.environment["CLAUDE_PROJECT_ROOT"] {
+            return URL(fileURLWithPath: projectRoot).lastPathComponent
+        }
+
+        // Try PWD
+        if let pwd = ProcessInfo.processInfo.environment["PWD"] {
+            return URL(fileURLWithPath: pwd).lastPathComponent
+        }
+
+        // Fallback
+        return URL(fileURLWithPath: FileManager.default.currentDirectoryPath).lastPathComponent
+    }
+}
+
+// MARK: - Gemini Debouncing
+
+struct GeminiDebouncer {
+    /// Check if should notify for Gemini (with debouncing)
+    static func shouldNotify(data: [String: Any]) -> Bool {
+        // Check finishReason - only notify on STOP
+        if let finishReason = data["finishReason"] as? String, finishReason != "STOP" {
+            return false
+        }
+
+        // Also check in llm_response
+        if let llmResponse = data["llm_response"] as? [String: Any],
+           let candidates = llmResponse["candidates"] as? [[String: Any]],
+           let first = candidates.first,
+           let finishReason = first["finishReason"] as? String,
+           finishReason != "STOP" {
+            return false
+        }
+
+        // Session-based debouncing
+        guard let sessionId = data["session_id"] as? String else {
+            return true
+        }
+
+        let lockFile = "\(Config.debounceDir)/.gemini-notify-\(sessionId).lock"
+        let now = Date().timeIntervalSince1970 * 1000  // milliseconds
+
+        if FileManager.default.fileExists(atPath: lockFile) {
+            if let content = try? String(contentsOfFile: lockFile, encoding: .utf8),
+               let lastTime = Double(content.trimmingCharacters(in: .whitespacesAndNewlines)) {
+                if now - lastTime < Double(Config.debounceMs) {
+                    // Update timestamp but don't notify
+                    try? String(Int(now)).write(toFile: lockFile, atomically: true, encoding: .utf8)
+                    return false
+                }
+            }
+        }
+
+        // Write new timestamp
+        try? String(Int(now)).write(toFile: lockFile, atomically: true, encoding: .utf8)
+        return true
+    }
 }
 
 // MARK: - Hook Data Parser
@@ -53,159 +166,315 @@ struct HookDataParser {
 
         // Check for Gemini-specific fields
         if let data = data {
-            if data["modelResponse"] != nil || data["finishReason"] != nil {
+            if data["llm_response"] != nil || data["modelResponse"] != nil || data["finishReason"] != nil {
                 return .gemini
             }
-            if data["event"] as? String == "agent-turn-complete" {
+            if data["event"] as? String == "agent-turn-complete" ||
+               data["type"] as? String == "agent-turn-complete" {
                 return .codex
+            }
+
+            // Check transcript_path
+            if let transcriptPath = data["transcript_path"] as? String {
+                if transcriptPath.contains("/.claude/") { return .claude }
+                if transcriptPath.contains("/.gemini/") { return .gemini }
+            }
+
+            // Check hook_event_name for Claude/Gemini
+            if data["hook_event_name"] != nil {
+                let notificationType = data["notification_type"] as? String ?? ""
+                if ["idle_prompt", "permission_prompt"].contains(notificationType) {
+                    return .claude
+                }
+                if notificationType == "ToolPermission" {
+                    return .gemini
+                }
+                if data["stop_hook_active"] != nil {
+                    return .claude
+                }
+                if data["llm_response"] != nil {
+                    return .gemini
+                }
             }
         }
 
-        // Check process info
-        let parentProcess = ProcessInfo.processInfo.processName
-        if parentProcess.lowercased().contains("gemini") {
-            return .gemini
-        }
-        if parentProcess.lowercased().contains("codex") {
-            return .codex
-        }
-
-        // Default to claude (most common)
+        // Default to claude
         return .claude
     }
 
-    /// Parse hook event from JSON data
-    static func parseEvent(from data: [String: Any]?, cli: CLISource) -> HookEvent {
+    /// Parse notification content from hook data
+    static func parseNotification(from data: [String: Any]?, cli: CLISource) -> NotificationContent? {
+        let projectName = ProjectInfo.getProjectName(from: data)
+        let title = "\(cli.displayName) - \(projectName)"
+
         guard let data = data else {
-            return .stop(transcript: nil)
+            return NotificationContent(
+                title: title,
+                subtitle: "응답 완료",
+                body: "응답을 확인하세요",
+                cli: cli
+            )
         }
 
         switch cli {
         case .claude:
-            return parseClaudeEvent(data)
+            return parseClaudeNotification(data: data, title: title, cli: cli)
         case .gemini:
-            return parseGeminiEvent(data)
+            return parseGeminiNotification(data: data, title: title, cli: cli)
         case .codex:
-            return parseCodexEvent(data)
+            return parseCodexNotification(data: data, title: title, cli: cli)
         case .unknown:
-            return .unknown
+            return NotificationContent(
+                title: title,
+                subtitle: "알림",
+                body: "상태가 변경되었습니다",
+                cli: cli
+            )
         }
     }
 
     // MARK: - Claude Parsing
 
-    private static func parseClaudeEvent(_ data: [String: Any]) -> HookEvent {
-        // Check for notification event
-        if let hookName = data["hook_name"] as? String {
-            if hookName == "Notification" {
-                let notificationType = data["notification_type"] as? String ?? ""
-                return .notification(type: notificationType, message: nil)
+    private static func parseClaudeNotification(data: [String: Any], title: String, cli: CLISource) -> NotificationContent? {
+        let hookName = data["hook_event_name"] as? String ?? data["hook_name"] as? String ?? ""
+        let notificationType = data["notification_type"] as? String ?? ""
+        let message = data["message"] as? String
+
+        // Stop event
+        if hookName == "Stop" || data["stop_hook_active"] as? Bool == true {
+            let response = extractClaudeResponse(from: data)
+            return NotificationContent(
+                title: title,
+                subtitle: "응답 완료",
+                body: response.isEmpty ? "응답을 확인하세요" : response,
+                cli: cli
+            )
+        }
+
+        // Notification event
+        if hookName == "Notification" {
+            if notificationType == "idle_prompt" {
+                return NotificationContent(
+                    title: title,
+                    subtitle: "입력 대기",
+                    body: "사용자 입력을 기다리고 있습니다",
+                    cli: cli
+                )
             }
-        }
 
-        // Stop event - extract transcript
-        if let transcript = data["transcript"] as? [[String: Any]] {
-            let lastAssistantMessage = extractLastAssistantMessage(from: transcript)
-            return .stop(transcript: lastAssistantMessage)
-        }
-
-        // Try to get stop_hook_active
-        if data["stop_hook_active"] as? Bool == true {
-            if let transcript = data["transcript"] as? [[String: Any]] {
-                let lastAssistantMessage = extractLastAssistantMessage(from: transcript)
-                return .stop(transcript: lastAssistantMessage)
+            if notificationType == "permission_prompt" {
+                return NotificationContent(
+                    title: title,
+                    subtitle: "권한 요청",
+                    body: message ?? "권한 승인이 필요합니다",
+                    cli: cli
+                )
             }
-            return .stop(transcript: nil)
+
+            return NotificationContent(
+                title: title,
+                subtitle: notificationType.isEmpty ? "알림" : notificationType,
+                body: message ?? "응답을 확인하세요",
+                cli: cli
+            )
         }
 
-        return .stop(transcript: nil)
+        // Default - treat as stop
+        let response = extractClaudeResponse(from: data)
+        return NotificationContent(
+            title: title,
+            subtitle: "응답 완료",
+            body: response.isEmpty ? "응답을 확인하세요" : response,
+            cli: cli
+        )
     }
 
-    private static func extractLastAssistantMessage(from transcript: [[String: Any]]) -> String? {
-        // Find last assistant message
-        for item in transcript.reversed() {
-            if item["type"] as? String == "assistant" {
-                if let message = item["message"] as? [String: Any],
-                   let content = message["content"] as? [[String: Any]] {
-                    // Extract text from content blocks
-                    for block in content.reversed() {
-                        if block["type"] as? String == "text",
-                           let text = block["text"] as? String {
-                            return truncateMessage(text, maxLength: 100)
+    private static func extractClaudeResponse(from data: [String: Any]) -> String {
+        // Try transcript array in JSON
+        if let transcript = data["transcript"] as? [[String: Any]] {
+            for item in transcript.reversed() {
+                if item["type"] as? String == "assistant" {
+                    if let message = item["message"] as? [String: Any],
+                       let content = message["content"] as? [[String: Any]] {
+                        for block in content.reversed() {
+                            if block["type"] as? String == "text",
+                               let text = block["text"] as? String {
+                                return TextUtils.getPreviewText(text)
+                            }
                         }
                     }
                 }
             }
         }
-        return nil
+
+        // Try transcript_path (read from file)
+        if let transcriptPath = data["transcript_path"] as? String,
+           FileManager.default.fileExists(atPath: transcriptPath) {
+            if let content = try? String(contentsOfFile: transcriptPath, encoding: .utf8) {
+                let lines = content.split(separator: "\n").reversed()
+                for line in lines {
+                    if let lineData = line.data(using: .utf8),
+                       let json = try? JSONSerialization.jsonObject(with: lineData) as? [String: Any],
+                       json["type"] as? String == "assistant" {
+                        if let message = json["message"] as? [String: Any],
+                           let msgContent = message["content"] as? [[String: Any]] {
+                            for block in msgContent.reversed() {
+                                if block["type"] as? String == "text",
+                                   let text = block["text"] as? String {
+                                    return TextUtils.getPreviewText(text)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return ""
     }
 
     // MARK: - Gemini Parsing
 
-    private static func parseGeminiEvent(_ data: [String: Any]) -> HookEvent {
-        // Check finish reason
-        if let finishReason = data["finishReason"] as? String,
-           finishReason != "STOP" {
-            return .unknown // Skip non-final responses
+    private static func parseGeminiNotification(data: [String: Any], title: String, cli: CLISource) -> NotificationContent? {
+        let hookName = data["hook_event_name"] as? String ?? ""
+        let notificationType = data["notification_type"] as? String ?? ""
+        let message = data["message"] as? String
+
+        // AfterModel event
+        if hookName == "AfterModel" || data["llm_response"] != nil || data["modelResponse"] != nil {
+            // Check debouncing
+            if !GeminiDebouncer.shouldNotify(data: data) {
+                return nil  // Skip - debounced
+            }
+
+            let response = extractGeminiResponse(from: data)
+            return NotificationContent(
+                title: title,
+                subtitle: "응답 완료",
+                body: response.isEmpty ? "응답을 확인하세요" : response,
+                cli: cli
+            )
         }
 
-        // Extract text from modelResponse
+        // Notification event
+        if hookName == "Notification" {
+            if notificationType == "ToolPermission" {
+                return NotificationContent(
+                    title: title,
+                    subtitle: "권한 요청",
+                    body: message ?? "권한 승인이 필요합니다",
+                    cli: cli
+                )
+            }
+
+            return NotificationContent(
+                title: title,
+                subtitle: notificationType.isEmpty ? "알림" : notificationType,
+                body: message ?? "응답을 확인하세요",
+                cli: cli
+            )
+        }
+
+        // Default
+        let response = extractGeminiResponse(from: data)
+        if response.isEmpty && hookName.isEmpty {
+            return nil  // No meaningful content
+        }
+
+        return NotificationContent(
+            title: title,
+            subtitle: "응답 완료",
+            body: response.isEmpty ? "응답을 확인하세요" : response,
+            cli: cli
+        )
+    }
+
+    private static func extractGeminiResponse(from data: [String: Any]) -> String {
+        // Try llm_response.text
+        if let llmResponse = data["llm_response"] as? [String: Any] {
+            if let text = llmResponse["text"] as? String {
+                return TextUtils.getPreviewText(text)
+            }
+
+            // Try candidates
+            if let candidates = llmResponse["candidates"] as? [[String: Any]] {
+                for candidate in candidates {
+                    if let content = candidate["content"] as? [String: Any],
+                       let parts = content["parts"] as? [[String: Any]] {
+                        for part in parts {
+                            if let text = part["text"] as? String {
+                                return TextUtils.getPreviewText(text)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Try modelResponse
         if let modelResponse = data["modelResponse"] as? [String: Any],
-           let candidates = modelResponse["candidates"] as? [[String: Any]],
-           let firstCandidate = candidates.first,
-           let content = firstCandidate["content"] as? [String: Any],
-           let parts = content["parts"] as? [[String: Any]],
-           let firstPart = parts.first,
-           let text = firstPart["text"] as? String {
-            return .afterModel(text: truncateMessage(text, maxLength: 100))
+           let candidates = modelResponse["candidates"] as? [[String: Any]] {
+            for candidate in candidates {
+                if let content = candidate["content"] as? [String: Any],
+                   let parts = content["parts"] as? [[String: Any]] {
+                    for part in parts {
+                        if let text = part["text"] as? String {
+                            return TextUtils.getPreviewText(text)
+                        }
+                    }
+                }
+            }
         }
 
-        return .afterModel(text: nil)
+        return ""
     }
 
     // MARK: - Codex Parsing
 
-    private static func parseCodexEvent(_ data: [String: Any]) -> HookEvent {
-        if let event = data["event"] as? String {
-            if event == "agent-turn-complete" {
-                let response = data["response"] as? String
-                return .agentTurn(response: truncateMessage(response, maxLength: 100))
-            }
-            if event == "approval-requested" {
-                return .notification(type: "approval", message: data["message"] as? String)
-            }
+    private static func parseCodexNotification(data: [String: Any], title: String, cli: CLISource) -> NotificationContent? {
+        let eventType = data["type"] as? String ?? data["event"] as? String ?? data["event_type"] as? String ?? ""
+
+        if eventType == "agent-turn-complete" {
+            let response = extractCodexResponse(from: data)
+            return NotificationContent(
+                title: title,
+                subtitle: "응답 완료",
+                body: response.isEmpty ? "응답을 확인하세요" : response,
+                cli: cli
+            )
         }
-        return .agentTurn(response: nil)
+
+        if eventType == "approval-requested" {
+            let message = data["message"] as? String
+            return NotificationContent(
+                title: title,
+                subtitle: "권한 요청",
+                body: message ?? "권한 승인이 필요합니다",
+                cli: cli
+            )
+        }
+
+        // Default
+        let response = extractCodexResponse(from: data)
+        return NotificationContent(
+            title: title,
+            subtitle: eventType.isEmpty ? "알림" : eventType,
+            body: response.isEmpty ? "상태가 변경되었습니다" : response,
+            cli: cli
+        )
     }
 
-    // MARK: - Helpers
-
-    private static func truncateMessage(_ text: String?, maxLength: Int) -> String? {
-        guard let text = text else { return nil }
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.count <= maxLength {
-            return trimmed
+    private static func extractCodexResponse(from data: [String: Any]) -> String {
+        if let message = data["last-assistant-message"] as? String {
+            return TextUtils.getPreviewText(message)
         }
-        return String(trimmed.prefix(maxLength)) + "..."
-    }
-}
-
-// MARK: - Project Info
-
-struct ProjectInfo {
-    static func getProjectName() -> String {
-        // Try CLAUDE_PROJECT_ROOT first
-        if let projectRoot = ProcessInfo.processInfo.environment["CLAUDE_PROJECT_ROOT"] {
-            return URL(fileURLWithPath: projectRoot).lastPathComponent
+        if let message = data["message"] as? String {
+            return TextUtils.getPreviewText(message)
         }
-
-        // Try PWD
-        if let pwd = ProcessInfo.processInfo.environment["PWD"] {
-            return URL(fileURLWithPath: pwd).lastPathComponent
+        if let response = data["response"] as? String {
+            return TextUtils.getPreviewText(response)
         }
-
-        // Fallback to current directory
-        return URL(fileURLWithPath: FileManager.default.currentDirectoryPath).lastPathComponent
+        return ""
     }
 }
 
@@ -216,10 +485,7 @@ class NotificationManager {
     private let center = UNUserNotificationCenter.current()
 
     func sendNotification(
-        cli: CLISource,
-        title: String,
-        subtitle: String,
-        body: String,
+        content: NotificationContent,
         completion: @escaping (Bool) -> Void
     ) {
         // First, request authorization
@@ -237,26 +503,22 @@ class NotificationManager {
             }
 
             // Permission granted, now send notification
-            self.deliverNotification(cli: cli, title: title, subtitle: subtitle, body: body, completion: completion)
+            self.deliverNotification(content: content, completion: completion)
         }
     }
 
     private func deliverNotification(
-        cli: CLISource,
-        title: String,
-        subtitle: String,
-        body: String,
+        content: NotificationContent,
         completion: @escaping (Bool) -> Void
     ) {
-        let content = UNMutableNotificationContent()
-        content.title = title
-        content.subtitle = subtitle
-        content.body = body
-        content.sound = .default
+        let notificationContent = UNMutableNotificationContent()
+        notificationContent.title = content.title
+        notificationContent.subtitle = content.subtitle
+        notificationContent.body = content.body
+        notificationContent.sound = .default
 
         // Add icon as attachment if available
-        // UNNotificationAttachment moves the file, so we need to copy to temp first
-        if let iconURL = getIconURL(for: cli) {
+        if let iconURL = getIconURL(for: content.cli) {
             let tempDir = FileManager.default.temporaryDirectory
             let tempIconURL = tempDir.appendingPathComponent("ai-notifier-\(UUID().uuidString).png")
 
@@ -267,15 +529,14 @@ class NotificationManager {
                     url: tempIconURL,
                     options: [UNNotificationAttachmentOptionsTypeHintKey: "public.png"]
                 )
-                content.attachments = [attachment]
+                notificationContent.attachments = [attachment]
             } catch {
                 // Icon attachment failed, continue without icon
-                fputs("Icon attachment warning: \(error.localizedDescription)\n", stderr)
             }
         }
 
         let identifier = "ai-notifier-\(UUID().uuidString)"
-        let request = UNNotificationRequest(identifier: identifier, content: content, trigger: nil)
+        let request = UNNotificationRequest(identifier: identifier, content: notificationContent, trigger: nil)
 
         center.add(request) { error in
             if let error = error {
@@ -288,15 +549,12 @@ class NotificationManager {
     }
 
     private func getIconURL(for cli: CLISource) -> URL? {
-        // Get the app bundle's Resources directory
         let bundle = Bundle.main
 
-        // Try to find the icon in Resources
         if let iconPath = bundle.path(forResource: cli.iconName, ofType: "png") {
             return URL(fileURLWithPath: iconPath)
         }
 
-        // Fallback: check in the executable's directory
         let executableURL = URL(fileURLWithPath: CommandLine.arguments[0])
         let resourcesURL = executableURL
             .deletingLastPathComponent()
@@ -315,14 +573,12 @@ class NotificationManager {
 // MARK: - Setup Mode (Request Permission with GUI Dialog)
 
 func runSetupMode() {
-    // Activate as GUI app to show permission dialog
     let app = NSApplication.shared
     app.setActivationPolicy(.regular)
     app.activate(ignoringOtherApps: true)
 
     let center = UNUserNotificationCenter.current()
 
-    // Check current authorization status first
     let semaphore = DispatchSemaphore(value: 0)
     var currentStatus: UNAuthorizationStatus = .notDetermined
 
@@ -333,27 +589,25 @@ func runSetupMode() {
     semaphore.wait()
 
     if currentStatus == .authorized {
-        // Already authorized - show success message
         let alert = NSAlert()
         alert.messageText = "AI Notifier"
-        alert.informativeText = "✅ 알림이 이미 활성화되어 있습니다!\n\nClaude Code, Gemini CLI, Codex CLI에서 알림을 받을 수 있습니다."
+        alert.informativeText = "알림이 이미 활성화되어 있습니다!\n\nClaude, Gemini, Codex CLI에서 알림을 받을 수 있습니다."
         alert.alertStyle = .informational
         alert.addButton(withTitle: "확인")
         alert.runModal()
         exit(0)
     }
 
-    // Request authorization - this will show system dialog
     center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
         DispatchQueue.main.async {
             let alert = NSAlert()
             alert.messageText = "AI Notifier"
 
             if granted {
-                alert.informativeText = "✅ 알림이 활성화되었습니다!\n\nClaude Code, Gemini CLI, Codex CLI에서 알림을 받을 수 있습니다."
+                alert.informativeText = "알림이 활성화되었습니다!\n\nClaude, Gemini, Codex CLI에서 알림을 받을 수 있습니다."
                 alert.alertStyle = .informational
             } else {
-                alert.informativeText = "⚠️ 알림 권한이 필요합니다.\n\n시스템 설정 → 알림 → AI Notifier에서 '알림 허용'을 켜주세요."
+                alert.informativeText = "알림 권한이 필요합니다.\n\n시스템 설정 > 알림 > AI Notifier에서 '알림 허용'을 켜주세요."
                 alert.alertStyle = .warning
                 alert.addButton(withTitle: "설정 열기")
                 alert.addButton(withTitle: "닫기")
@@ -370,7 +624,6 @@ func runSetupMode() {
         }
     }
 
-    // Run the app loop briefly to show dialogs
     app.run()
 }
 
@@ -386,7 +639,6 @@ func main() {
     // Read stdin (hook data from CLI)
     var inputData: [String: Any]? = nil
 
-    // Check if there's data on stdin
     if let inputString = readLine(strippingNewline: false) {
         var fullInput = inputString
         while let line = readLine(strippingNewline: false) {
@@ -402,44 +654,9 @@ func main() {
     // Detect CLI source
     let cli = HookDataParser.detectCLI(from: inputData)
 
-    // Parse event
-    let event = HookDataParser.parseEvent(from: inputData, cli: cli)
-
-    // Get project name
-    let projectName = ProjectInfo.getProjectName()
-
-    // Prepare notification content
-    var title = cli.displayName
-    let subtitle = projectName
-    var body = ""
-    var shouldNotify = true
-
-    switch event {
-    case .stop(let transcript):
-        body = transcript ?? "Response complete"
-
-    case .notification(let type, let message):
-        if type == "permission_prompt" {
-            body = message ?? "Permission requested"
-            title = "\(cli.displayName)"
-        } else if type == "approval" {
-            body = message ?? "Approval requested"
-            title = "\(cli.displayName)"
-        } else {
-            body = message ?? "Notification"
-        }
-
-    case .agentTurn(let response):
-        body = response ?? "Response complete"
-
-    case .afterModel(let text):
-        body = text ?? "Response complete"
-
-    case .unknown:
-        shouldNotify = false
-    }
-
-    guard shouldNotify else {
+    // Parse notification content
+    guard let content = HookDataParser.parseNotification(from: inputData, cli: cli) else {
+        // Nil means skip (e.g., debounced)
         exit(0)
     }
 
@@ -447,12 +664,7 @@ func main() {
     let semaphore = DispatchSemaphore(value: 0)
     var success = false
 
-    NotificationManager.shared.sendNotification(
-        cli: cli,
-        title: title,
-        subtitle: subtitle,
-        body: body
-    ) { result in
+    NotificationManager.shared.sendNotification(content: content) { result in
         success = result
         semaphore.signal()
     }
@@ -461,7 +673,6 @@ func main() {
     let timeout = semaphore.wait(timeout: .now() + 3.0)
 
     if timeout == .timedOut {
-        // Timeout is OK - notification might still appear
         exit(0)
     }
 
