@@ -185,9 +185,11 @@ struct TerminalActivator {
     private static func activateVSCode(cwd: String?) {
         if let cwd = cwd {
             // Use VS Code CLI to activate the window with this folder
+            // Note: "code <folder>" without -r flag will find and activate
+            // the existing window that has this folder open
             let task = Process()
             task.launchPath = "/usr/bin/env"
-            task.arguments = ["code", "-r", cwd]
+            task.arguments = ["code", cwd]
             task.standardOutput = FileHandle.nullDevice
             task.standardError = FileHandle.nullDevice
             try? task.run()
