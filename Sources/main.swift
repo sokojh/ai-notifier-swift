@@ -1,6 +1,7 @@
 import Foundation
 import UserNotifications
 import AppKit
+import Darwin
 
 // MARK: - Configuration
 
@@ -390,19 +391,20 @@ struct HookDataParser {
     }
 
     private static func extractGeminiResponse(from data: [String: Any]) -> String {
-        // Try llm_response.text
+        // Try llm_response
         if let llmResponse = data["llm_response"] as? [String: Any] {
-            if let text = llmResponse["text"] as? String {
+            // 1. Direct text field
+            if let text = llmResponse["text"] as? String, !text.isEmpty {
                 return TextUtils.getPreviewText(text)
             }
 
-            // Try candidates
+            // 2. Try candidates array
             if let candidates = llmResponse["candidates"] as? [[String: Any]] {
                 for candidate in candidates {
                     if let content = candidate["content"] as? [String: Any],
                        let parts = content["parts"] as? [[String: Any]] {
                         for part in parts {
-                            if let text = part["text"] as? String {
+                            if let text = part["text"] as? String, !text.isEmpty {
                                 return TextUtils.getPreviewText(text)
                             }
                         }
@@ -412,14 +414,38 @@ struct HookDataParser {
         }
 
         // Try modelResponse
-        if let modelResponse = data["modelResponse"] as? [String: Any],
-           let candidates = modelResponse["candidates"] as? [[String: Any]] {
-            for candidate in candidates {
-                if let content = candidate["content"] as? [String: Any],
-                   let parts = content["parts"] as? [[String: Any]] {
-                    for part in parts {
-                        if let text = part["text"] as? String {
-                            return TextUtils.getPreviewText(text)
+        if let modelResponse = data["modelResponse"] as? [String: Any] {
+            if let candidates = modelResponse["candidates"] as? [[String: Any]] {
+                for candidate in candidates {
+                    if let content = candidate["content"] as? [String: Any],
+                       let parts = content["parts"] as? [[String: Any]] {
+                        for part in parts {
+                            if let text = part["text"] as? String, !text.isEmpty {
+                                return TextUtils.getPreviewText(text)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Try transcript_path fallback
+        if let transcriptPath = data["transcript_path"] as? String,
+           FileManager.default.fileExists(atPath: transcriptPath) {
+            if let content = try? String(contentsOfFile: transcriptPath, encoding: .utf8),
+               let jsonData = content.data(using: .utf8),
+               let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
+               let messages = json["messages"] as? [[String: Any]] {
+                for msg in messages.reversed() {
+                    if msg["type"] as? String == "gemini" {
+                        if let msgContent = msg["content"] as? String, !msgContent.isEmpty {
+                            return TextUtils.getPreviewText(msgContent)
+                        }
+                        if let parts = msg["content"] as? [[String: Any]] {
+                            let text = parts.compactMap { $0["text"] as? String }.joined(separator: " ")
+                            if !text.isEmpty {
+                                return TextUtils.getPreviewText(text)
+                            }
                         }
                     }
                 }
@@ -636,18 +662,35 @@ func main() {
         return
     }
 
-    // Read stdin (hook data from CLI)
     var inputData: [String: Any]? = nil
 
-    if let inputString = readLine(strippingNewline: false) {
-        var fullInput = inputString
-        while let line = readLine(strippingNewline: false) {
-            fullInput += line
+    // 1. Try command line arguments first (Codex passes JSON as argv)
+    if CommandLine.arguments.count > 1 {
+        let arg = CommandLine.arguments[1]
+        // Skip if it's a flag
+        if !arg.hasPrefix("-") {
+            if let data = arg.data(using: .utf8),
+               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                inputData = json
+            }
         }
+    }
 
-        if let data = fullInput.data(using: .utf8),
-           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-            inputData = json
+    // 2. Fall back to stdin (Claude, Gemini)
+    if inputData == nil {
+        // Check if stdin has data (non-TTY)
+        if isatty(FileHandle.standardInput.fileDescriptor) == 0 {
+            if let inputString = readLine(strippingNewline: false) {
+                var fullInput = inputString
+                while let line = readLine(strippingNewline: false) {
+                    fullInput += line
+                }
+
+                if let data = fullInput.data(using: .utf8),
+                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    inputData = json
+                }
+            }
         }
     }
 
