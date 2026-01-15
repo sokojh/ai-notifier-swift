@@ -114,17 +114,20 @@ struct ProjectInfo {
 struct GeminiDebouncer {
     /// Check if should notify for Gemini (with debouncing)
     static func shouldNotify(data: [String: Any]) -> Bool {
-        // Check finishReason - only notify on STOP
-        if let finishReason = data["finishReason"] as? String, finishReason != "STOP" {
-            return false
-        }
+        // Extract finishReason from llm_response.candidates[0].finishReason
+        var finishReason: String = ""
 
-        // Also check in llm_response
         if let llmResponse = data["llm_response"] as? [String: Any],
            let candidates = llmResponse["candidates"] as? [[String: Any]],
            let first = candidates.first,
-           let finishReason = first["finishReason"] as? String,
-           finishReason != "STOP" {
+           let reason = first["finishReason"] as? String {
+            finishReason = reason
+        } else if let reason = data["finishReason"] as? String {
+            finishReason = reason
+        }
+
+        // Only notify on STOP - skip all other cases (streaming chunks)
+        if finishReason != "STOP" {
             return false
         }
 
@@ -653,6 +656,22 @@ func runSetupMode() {
     app.run()
 }
 
+// MARK: - Debug Logging
+
+func debugLog(_ message: String) {
+    let logFile = "/tmp/ai-notifier-debug.log"
+    let timestamp = ISO8601DateFormatter().string(from: Date())
+    let logMessage = "[\(timestamp)] \(message)\n"
+
+    if let handle = FileHandle(forWritingAtPath: logFile) {
+        handle.seekToEndOfFile()
+        handle.write(logMessage.data(using: .utf8)!)
+        handle.closeFile()
+    } else {
+        try? logMessage.write(toFile: logFile, atomically: true, encoding: .utf8)
+    }
+}
+
 // MARK: - Main Entry Point
 
 func main() {
@@ -662,22 +681,29 @@ func main() {
         return
     }
 
+    debugLog("=== ai-notifier started ===")
+    debugLog("Arguments count: \(CommandLine.arguments.count)")
+    debugLog("Arguments: \(CommandLine.arguments)")
+
     var inputData: [String: Any]? = nil
 
     // 1. Try command line arguments first (Codex passes JSON as argv)
     if CommandLine.arguments.count > 1 {
         let arg = CommandLine.arguments[1]
+        debugLog("Arg[1]: \(arg.prefix(200))...")
         // Skip if it's a flag
         if !arg.hasPrefix("-") {
             if let data = arg.data(using: .utf8),
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
                 inputData = json
+                debugLog("Parsed from argv: \(json.keys)")
             }
         }
     }
 
     // 2. Fall back to stdin (Claude, Gemini)
     if inputData == nil {
+        debugLog("Checking stdin... isatty=\(isatty(FileHandle.standardInput.fileDescriptor))")
         // Check if stdin has data (non-TTY)
         if isatty(FileHandle.standardInput.fileDescriptor) == 0 {
             if let inputString = readLine(strippingNewline: false) {
@@ -685,10 +711,12 @@ func main() {
                 while let line = readLine(strippingNewline: false) {
                     fullInput += line
                 }
+                debugLog("Stdin received: \(fullInput.prefix(200))...")
 
                 if let data = fullInput.data(using: .utf8),
                    let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
                     inputData = json
+                    debugLog("Parsed from stdin: \(json.keys)")
                 }
             }
         }
@@ -696,12 +724,16 @@ func main() {
 
     // Detect CLI source
     let cli = HookDataParser.detectCLI(from: inputData)
+    debugLog("Detected CLI: \(cli.rawValue)")
 
     // Parse notification content
     guard let content = HookDataParser.parseNotification(from: inputData, cli: cli) else {
         // Nil means skip (e.g., debounced)
+        debugLog("parseNotification returned nil - skipping")
         exit(0)
     }
+
+    debugLog("Notification: title=\(content.title), subtitle=\(content.subtitle), body=\(content.body.prefix(50))...")
 
     // Send notification
     let semaphore = DispatchSemaphore(value: 0)
