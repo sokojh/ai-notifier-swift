@@ -183,20 +183,51 @@ struct TerminalActivator {
     }
 
     private static func activateVSCode(cwd: String?) {
+        debugLog("activateVSCode called with cwd: \(cwd ?? "nil")")
+
         if let cwd = cwd {
             // Use VS Code CLI to activate the window with this folder
             // Note: "code <folder>" without -r flag will find and activate
             // the existing window that has this folder open
-            let task = Process()
-            task.launchPath = "/usr/bin/env"
-            task.arguments = ["code", cwd]
-            task.standardOutput = FileHandle.nullDevice
-            task.standardError = FileHandle.nullDevice
-            try? task.run()
-            task.waitUntilExit()
+
+            // Find VS Code CLI path (may not be in PATH)
+            let codePaths = [
+                "/usr/local/bin/code",
+                "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code",
+                "/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/bin/code"
+            ]
+
+            var codePath: String? = nil
+            for path in codePaths {
+                if FileManager.default.fileExists(atPath: path) {
+                    codePath = path
+                    break
+                }
+            }
+
+            if let codePath = codePath {
+                debugLog("Running: \(codePath) \(cwd)")
+                let task = Process()
+                task.launchPath = codePath
+                task.arguments = [cwd]
+                task.standardOutput = FileHandle.nullDevice
+                task.standardError = FileHandle.nullDevice
+                do {
+                    try task.run()
+                    task.waitUntilExit()
+                    debugLog("code command exit status: \(task.terminationStatus)")
+                } catch {
+                    debugLog("code command failed: \(error)")
+                }
+            } else {
+                debugLog("VS Code CLI not found in any known location")
+            }
+        } else {
+            debugLog("No cwd provided, skipping code command")
         }
 
         // Bring VS Code to front
+        debugLog("Running AppleScript to activate VS Code")
         runAppleScript("""
         tell application "Visual Studio Code"
             activate
@@ -207,6 +238,7 @@ struct TerminalActivator {
         """)
 
         // Focus terminal using VS Code URL scheme
+        debugLog("Running vscode:// URL scheme for terminal focus")
         let task = Process()
         task.launchPath = "/usr/bin/open"
         task.arguments = ["vscode://command/workbench.action.terminal.focus"]
