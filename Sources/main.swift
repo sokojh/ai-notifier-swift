@@ -39,6 +39,75 @@ enum CLISource: String, CaseIterable {
     }
 }
 
+// MARK: - Terminal Info (for click-to-activate)
+
+enum TerminalType: String {
+    case iterm2 = "iTerm.app"
+    case vscode = "vscode"
+    case terminal = "Apple_Terminal"
+    case unknown = "unknown"
+
+    static func detect() -> TerminalType {
+        guard let termProgram = ProcessInfo.processInfo.environment["TERM_PROGRAM"] else {
+            return .unknown
+        }
+        return TerminalType(rawValue: termProgram) ?? .unknown
+    }
+}
+
+struct TerminalInfo {
+    let type: TerminalType
+    let sessionId: String?  // iTerm2 ITERM_SESSION_ID
+    let cwd: String?        // Working directory for VS Code
+    let tty: String?        // TTY device for Terminal.app (e.g., /dev/ttys001)
+
+    static func capture(cwd: String? = nil) -> TerminalInfo {
+        let env = ProcessInfo.processInfo.environment
+        return TerminalInfo(
+            type: TerminalType.detect(),
+            sessionId: env["ITERM_SESSION_ID"],
+            cwd: cwd ?? env["PWD"],
+            tty: env["TTY"] ?? getCurrentTTY()
+        )
+    }
+
+    private static func getCurrentTTY() -> String? {
+        // Try to get TTY from tty command
+        let task = Process()
+        task.launchPath = "/usr/bin/tty"
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = FileHandle.nullDevice
+        do {
+            try task.run()
+            task.waitUntilExit()
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            if let output = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
+               !output.isEmpty && output != "not a tty" {
+                return output
+            }
+        } catch {}
+        return nil
+    }
+
+    func toDictionary() -> [String: String] {
+        var dict: [String: String] = ["terminalType": type.rawValue]
+        if let sessionId = sessionId { dict["sessionId"] = sessionId }
+        if let cwd = cwd { dict["cwd"] = cwd }
+        if let tty = tty { dict["tty"] = tty }
+        return dict
+    }
+
+    static func from(dictionary: [String: String]) -> TerminalInfo {
+        return TerminalInfo(
+            type: TerminalType(rawValue: dictionary["terminalType"] ?? "") ?? .unknown,
+            sessionId: dictionary["sessionId"],
+            cwd: dictionary["cwd"],
+            tty: dictionary["tty"]
+        )
+    }
+}
+
 // MARK: - Notification Content
 
 struct NotificationContent {
@@ -46,6 +115,132 @@ struct NotificationContent {
     let subtitle: String   // "응답 완료" / "권한 요청" / "입력 대기"
     let body: String       // Response preview
     let cli: CLISource
+    let terminalInfo: TerminalInfo
+}
+
+// MARK: - Terminal Activator
+
+struct TerminalActivator {
+    static func activate(_ info: TerminalInfo) {
+        switch info.type {
+        case .iterm2:
+            activateITerm2(sessionId: info.sessionId)
+        case .vscode:
+            activateVSCode(cwd: info.cwd)
+        case .terminal:
+            activateTerminalApp(tty: info.tty)
+        case .unknown:
+            // Try to activate based on available info
+            if info.sessionId != nil {
+                activateITerm2(sessionId: info.sessionId)
+            } else if info.tty != nil {
+                activateTerminalApp(tty: info.tty)
+            } else if let cwd = info.cwd {
+                activateVSCode(cwd: cwd)
+            }
+        }
+    }
+
+    private static func activateITerm2(sessionId: String?) {
+        // AppleScript to activate iTerm2 and optionally select session
+        var script = """
+        tell application "iTerm2"
+            activate
+        """
+
+        if let sessionId = sessionId {
+            // ITERM_SESSION_ID format: w0t0p0:UUID
+            // Extract just the UUID part if present
+            let uuid = sessionId.contains(":") ? String(sessionId.split(separator: ":").last ?? "") : sessionId
+            if !uuid.isEmpty {
+                script += """
+
+                    try
+                        repeat with w in windows
+                            repeat with t in tabs of w
+                                repeat with s in sessions of t
+                                    if unique id of s contains "\(uuid)" then
+                                        select s
+                                        select t
+                                        set index of w to 1
+                                        return
+                                    end if
+                                end repeat
+                            end repeat
+                        end repeat
+                    end try
+                """
+            }
+        }
+
+        script += """
+
+        end tell
+        """
+
+        runAppleScript(script)
+    }
+
+    private static func activateVSCode(cwd: String?) {
+        if let cwd = cwd {
+            // Use VS Code CLI to activate the window with this folder
+            let task = Process()
+            task.launchPath = "/usr/bin/env"
+            task.arguments = ["code", "-r", cwd]
+            task.standardOutput = FileHandle.nullDevice
+            task.standardError = FileHandle.nullDevice
+            try? task.run()
+        } else {
+            // Just activate VS Code app
+            runAppleScript("""
+            tell application "Visual Studio Code"
+                activate
+            end tell
+            """)
+        }
+    }
+
+    private static func activateTerminalApp(tty: String?) {
+        var script = """
+        tell application "Terminal"
+            activate
+        """
+
+        if let tty = tty, !tty.isEmpty {
+            // Select the specific tab by TTY
+            script += """
+
+                try
+                    repeat with w in windows
+                        repeat with t in tabs of w
+                            if tty of t is "\(tty)" then
+                                set selected tab of w to t
+                                set frontmost of w to true
+                                set index of w to 1
+                                return
+                            end if
+                        end repeat
+                    end repeat
+                end try
+            """
+        }
+
+        script += """
+
+        end tell
+        """
+
+        runAppleScript(script)
+    }
+
+    private static func runAppleScript(_ script: String) {
+        let task = Process()
+        task.launchPath = "/usr/bin/osascript"
+        task.arguments = ["-e", script]
+        task.standardOutput = FileHandle.nullDevice
+        task.standardError = FileHandle.nullDevice
+        try? task.run()
+    }
 }
 
 // MARK: - Text Utilities
@@ -211,35 +406,41 @@ struct HookDataParser {
         let projectName = ProjectInfo.getProjectName(from: data)
         let title = "\(cli.displayName) - \(projectName)"
 
+        // Capture terminal info for click-to-activate
+        let cwd = data?["cwd"] as? String
+        let terminalInfo = TerminalInfo.capture(cwd: cwd)
+
         guard let data = data else {
             return NotificationContent(
                 title: title,
                 subtitle: "응답 완료",
                 body: "응답을 확인하세요",
-                cli: cli
+                cli: cli,
+                terminalInfo: terminalInfo
             )
         }
 
         switch cli {
         case .claude:
-            return parseClaudeNotification(data: data, title: title, cli: cli)
+            return parseClaudeNotification(data: data, title: title, cli: cli, terminalInfo: terminalInfo)
         case .gemini:
-            return parseGeminiNotification(data: data, title: title, cli: cli)
+            return parseGeminiNotification(data: data, title: title, cli: cli, terminalInfo: terminalInfo)
         case .codex:
-            return parseCodexNotification(data: data, title: title, cli: cli)
+            return parseCodexNotification(data: data, title: title, cli: cli, terminalInfo: terminalInfo)
         case .unknown:
             return NotificationContent(
                 title: title,
                 subtitle: "알림",
                 body: "상태가 변경되었습니다",
-                cli: cli
+                cli: cli,
+                terminalInfo: terminalInfo
             )
         }
     }
 
     // MARK: - Claude Parsing
 
-    private static func parseClaudeNotification(data: [String: Any], title: String, cli: CLISource) -> NotificationContent? {
+    private static func parseClaudeNotification(data: [String: Any], title: String, cli: CLISource, terminalInfo: TerminalInfo) -> NotificationContent? {
         let hookName = data["hook_event_name"] as? String ?? data["hook_name"] as? String ?? ""
         let notificationType = data["notification_type"] as? String ?? ""
         let message = data["message"] as? String
@@ -251,7 +452,8 @@ struct HookDataParser {
                 title: title,
                 subtitle: "응답 완료",
                 body: response.isEmpty ? "응답을 확인하세요" : response,
-                cli: cli
+                cli: cli,
+                terminalInfo: terminalInfo
             )
         }
 
@@ -262,7 +464,8 @@ struct HookDataParser {
                     title: title,
                     subtitle: "입력 대기",
                     body: "사용자 입력을 기다리고 있습니다",
-                    cli: cli
+                    cli: cli,
+                    terminalInfo: terminalInfo
                 )
             }
 
@@ -271,7 +474,8 @@ struct HookDataParser {
                     title: title,
                     subtitle: "권한 요청",
                     body: message ?? "권한 승인이 필요합니다",
-                    cli: cli
+                    cli: cli,
+                    terminalInfo: terminalInfo
                 )
             }
 
@@ -279,7 +483,8 @@ struct HookDataParser {
                 title: title,
                 subtitle: notificationType.isEmpty ? "알림" : notificationType,
                 body: message ?? "응답을 확인하세요",
-                cli: cli
+                cli: cli,
+                terminalInfo: terminalInfo
             )
         }
 
@@ -289,7 +494,8 @@ struct HookDataParser {
             title: title,
             subtitle: "응답 완료",
             body: response.isEmpty ? "응답을 확인하세요" : response,
-            cli: cli
+            cli: cli,
+            terminalInfo: terminalInfo
         )
     }
 
@@ -339,7 +545,7 @@ struct HookDataParser {
 
     // MARK: - Gemini Parsing
 
-    private static func parseGeminiNotification(data: [String: Any], title: String, cli: CLISource) -> NotificationContent? {
+    private static func parseGeminiNotification(data: [String: Any], title: String, cli: CLISource, terminalInfo: TerminalInfo) -> NotificationContent? {
         let hookName = data["hook_event_name"] as? String ?? ""
         let notificationType = data["notification_type"] as? String ?? ""
         let message = data["message"] as? String
@@ -356,7 +562,8 @@ struct HookDataParser {
                 title: title,
                 subtitle: "응답 완료",
                 body: response.isEmpty ? "응답을 확인하세요" : response,
-                cli: cli
+                cli: cli,
+                terminalInfo: terminalInfo
             )
         }
 
@@ -367,7 +574,8 @@ struct HookDataParser {
                     title: title,
                     subtitle: "권한 요청",
                     body: message ?? "권한 승인이 필요합니다",
-                    cli: cli
+                    cli: cli,
+                    terminalInfo: terminalInfo
                 )
             }
 
@@ -375,7 +583,8 @@ struct HookDataParser {
                 title: title,
                 subtitle: notificationType.isEmpty ? "알림" : notificationType,
                 body: message ?? "응답을 확인하세요",
-                cli: cli
+                cli: cli,
+                terminalInfo: terminalInfo
             )
         }
 
@@ -389,7 +598,8 @@ struct HookDataParser {
             title: title,
             subtitle: "응답 완료",
             body: response.isEmpty ? "응답을 확인하세요" : response,
-            cli: cli
+            cli: cli,
+            terminalInfo: terminalInfo
         )
     }
 
@@ -460,7 +670,7 @@ struct HookDataParser {
 
     // MARK: - Codex Parsing
 
-    private static func parseCodexNotification(data: [String: Any], title: String, cli: CLISource) -> NotificationContent? {
+    private static func parseCodexNotification(data: [String: Any], title: String, cli: CLISource, terminalInfo: TerminalInfo) -> NotificationContent? {
         let eventType = data["type"] as? String ?? data["event"] as? String ?? data["event_type"] as? String ?? ""
 
         if eventType == "agent-turn-complete" {
@@ -469,7 +679,8 @@ struct HookDataParser {
                 title: title,
                 subtitle: "응답 완료",
                 body: response.isEmpty ? "응답을 확인하세요" : response,
-                cli: cli
+                cli: cli,
+                terminalInfo: terminalInfo
             )
         }
 
@@ -479,7 +690,8 @@ struct HookDataParser {
                 title: title,
                 subtitle: "권한 요청",
                 body: message ?? "권한 승인이 필요합니다",
-                cli: cli
+                cli: cli,
+                terminalInfo: terminalInfo
             )
         }
 
@@ -489,7 +701,8 @@ struct HookDataParser {
             title: title,
             subtitle: eventType.isEmpty ? "알림" : eventType,
             body: response.isEmpty ? "상태가 변경되었습니다" : response,
-            cli: cli
+            cli: cli,
+            terminalInfo: terminalInfo
         )
     }
 
@@ -509,9 +722,14 @@ struct HookDataParser {
 
 // MARK: - Notification Manager
 
-class NotificationManager {
+class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     static let shared = NotificationManager()
     private let center = UNUserNotificationCenter.current()
+
+    override init() {
+        super.init()
+        center.delegate = self
+    }
 
     func sendNotification(
         content: NotificationContent,
@@ -546,6 +764,9 @@ class NotificationManager {
         notificationContent.body = content.body
         notificationContent.sound = .default
 
+        // Store terminal info in userInfo for click handling
+        notificationContent.userInfo = content.terminalInfo.toDictionary()
+
         // Add icon as attachment if available
         if let iconURL = getIconURL(for: content.cli) {
             let tempDir = FileManager.default.temporaryDirectory
@@ -575,6 +796,31 @@ class NotificationManager {
                 completion(true)
             }
         }
+    }
+
+    // MARK: - UNUserNotificationCenterDelegate
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        // Handle notification click
+        let userInfo = response.notification.request.content.userInfo
+        if let terminalDict = userInfo as? [String: String] {
+            let terminalInfo = TerminalInfo.from(dictionary: terminalDict)
+            TerminalActivator.activate(terminalInfo)
+        }
+        completionHandler()
+    }
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        // Show notification even when app is in foreground
+        completionHandler([.banner, .sound])
     }
 
     private func getIconURL(for cli: CLISource) -> URL? {
