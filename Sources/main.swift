@@ -222,6 +222,32 @@ class NotificationManager {
         body: String,
         completion: @escaping (Bool) -> Void
     ) {
+        // First, request authorization
+        center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+            if let error = error {
+                fputs("Authorization error: \(error.localizedDescription)\n", stderr)
+                completion(false)
+                return
+            }
+
+            guard granted else {
+                fputs("Notification permission denied. Please enable in System Settings > Notifications > AI Notifier\n", stderr)
+                completion(false)
+                return
+            }
+
+            // Permission granted, now send notification
+            self.deliverNotification(cli: cli, title: title, subtitle: subtitle, body: body, completion: completion)
+        }
+    }
+
+    private func deliverNotification(
+        cli: CLISource,
+        title: String,
+        subtitle: String,
+        body: String,
+        completion: @escaping (Bool) -> Void
+    ) {
         let content = UNMutableNotificationContent()
         content.title = title
         content.subtitle = subtitle
@@ -229,16 +255,22 @@ class NotificationManager {
         content.sound = .default
 
         // Add icon as attachment if available
+        // UNNotificationAttachment moves the file, so we need to copy to temp first
         if let iconURL = getIconURL(for: cli) {
+            let tempDir = FileManager.default.temporaryDirectory
+            let tempIconURL = tempDir.appendingPathComponent("ai-notifier-\(UUID().uuidString).png")
+
             do {
+                try FileManager.default.copyItem(at: iconURL, to: tempIconURL)
                 let attachment = try UNNotificationAttachment(
                     identifier: "icon",
-                    url: iconURL,
-                    options: nil
+                    url: tempIconURL,
+                    options: [UNNotificationAttachmentOptionsTypeHintKey: "public.png"]
                 )
                 content.attachments = [attachment]
             } catch {
                 // Icon attachment failed, continue without icon
+                fputs("Icon attachment warning: \(error.localizedDescription)\n", stderr)
             }
         }
 
@@ -280,9 +312,77 @@ class NotificationManager {
     }
 }
 
+// MARK: - Setup Mode (Request Permission with GUI Dialog)
+
+func runSetupMode() {
+    // Activate as GUI app to show permission dialog
+    let app = NSApplication.shared
+    app.setActivationPolicy(.regular)
+    app.activate(ignoringOtherApps: true)
+
+    let center = UNUserNotificationCenter.current()
+
+    // Check current authorization status first
+    let semaphore = DispatchSemaphore(value: 0)
+    var currentStatus: UNAuthorizationStatus = .notDetermined
+
+    center.getNotificationSettings { settings in
+        currentStatus = settings.authorizationStatus
+        semaphore.signal()
+    }
+    semaphore.wait()
+
+    if currentStatus == .authorized {
+        // Already authorized - show success message
+        let alert = NSAlert()
+        alert.messageText = "AI Notifier"
+        alert.informativeText = "✅ 알림이 이미 활성화되어 있습니다!\n\nClaude Code, Gemini CLI, Codex CLI에서 알림을 받을 수 있습니다."
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "확인")
+        alert.runModal()
+        exit(0)
+    }
+
+    // Request authorization - this will show system dialog
+    center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+        DispatchQueue.main.async {
+            let alert = NSAlert()
+            alert.messageText = "AI Notifier"
+
+            if granted {
+                alert.informativeText = "✅ 알림이 활성화되었습니다!\n\nClaude Code, Gemini CLI, Codex CLI에서 알림을 받을 수 있습니다."
+                alert.alertStyle = .informational
+            } else {
+                alert.informativeText = "⚠️ 알림 권한이 필요합니다.\n\n시스템 설정 → 알림 → AI Notifier에서 '알림 허용'을 켜주세요."
+                alert.alertStyle = .warning
+                alert.addButton(withTitle: "설정 열기")
+                alert.addButton(withTitle: "닫기")
+
+                if alert.runModal() == .alertFirstButtonReturn {
+                    NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension")!)
+                }
+                exit(1)
+            }
+
+            alert.addButton(withTitle: "확인")
+            alert.runModal()
+            exit(0)
+        }
+    }
+
+    // Run the app loop briefly to show dialogs
+    app.run()
+}
+
 // MARK: - Main Entry Point
 
 func main() {
+    // Check for setup mode
+    if CommandLine.arguments.contains("--setup") || CommandLine.arguments.contains("-s") {
+        runSetupMode()
+        return
+    }
+
     // Read stdin (hook data from CLI)
     var inputData: [String: Any]? = nil
 

@@ -277,44 +277,22 @@ fi
 # ===========================================
 echo ""
 echo -e "${BLUE}🔔 [4/4] 알림 권한 설정 중...${NC}"
-
-# 테스트 알림 전송
-echo "   테스트 알림 전송 중..."
-echo '{}' | "$NOTIFIER_PATH" 2>/dev/null || true
-sleep 1
-
+echo "   권한 요청 다이얼로그를 표시합니다..."
 echo ""
-echo -n "   테스트 알림이 보였나요? (Y/n): "
-read -r test_response
 
-if [[ "$test_response" =~ ^[Nn]$ ]]; then
-    echo ""
-    echo -e "${YELLOW}⚠️  알림 권한 설정이 필요합니다!${NC}"
-    echo ""
-    echo "   'AI Notifier' 앱의 알림 권한을 허용해주세요."
-    echo ""
-    echo -e "   ${GREEN}┌─────────────────────────────────────┐${NC}"
-    echo -e "   ${GREEN}│  ✅ 알림 허용: 켜기                 │${NC}"
-    echo -e "   ${GREEN}│  ✅ 알림 스타일: '알림' 선택        │${NC}"
-    echo -e "   ${GREEN}│     (배너 ❌ → 알림 ✅)             │${NC}"
-    echo -e "   ${GREEN}│     알림이 쌓여서 놓치지 않아요!    │${NC}"
-    echo -e "   ${GREEN}└─────────────────────────────────────┘${NC}"
-    echo ""
-    echo -n "   알림 설정을 열까요? (Y/n): "
-    read -r open_response
-    if [[ ! "$open_response" =~ ^[Nn]$ ]]; then
-        open "x-apple.systempreferences:com.apple.Notifications-Settings.extension"
-        echo ""
-        echo "   📍 'AI Notifier' 앱을 찾아서 설정해주세요."
-        echo ""
-        echo -n "   설정을 완료했으면 Enter를 눌러주세요..."
-        read -r
-    fi
-else
-    echo -e "   ${GREEN}✓ 알림이 작동합니다!${NC}"
+# GUI 모드로 권한 요청 다이얼로그 표시
+"$NOTIFIER_PATH" --setup 2>/dev/null
+SETUP_RESULT=$?
+
+if [ $SETUP_RESULT -eq 0 ]; then
+    echo -e "   ${GREEN}✓ 알림 권한이 설정되었습니다!${NC}"
     echo ""
     echo -e "${YELLOW}💡 알림이 쌓이게 하려면:${NC}"
     echo "   시스템 설정 → 알림 → AI Notifier → 알림 스타일: '알림' 선택"
+else
+    echo -e "   ${YELLOW}⚠️  알림 권한이 설정되지 않았습니다.${NC}"
+    echo "   나중에 다음 명령으로 다시 설정할 수 있습니다:"
+    echo "   $NOTIFIER_PATH --setup"
 fi
 
 # ===========================================
