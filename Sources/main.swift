@@ -1107,8 +1107,21 @@ func main() {
 
     // Parse notification content
     guard let content = HookDataParser.parseNotification(from: inputData, cli: cli) else {
-        // No input data = launched from notification click
-        // Wait for delegate callback which contains the specific notification's terminal info
+        // No input data - could be:
+        // 1. Launched from notification click
+        // 2. Launched directly by user (double-click from Finder/DMG)
+
+        // Check if launched directly (TTY or no stdin data)
+        let isDirectLaunch = isatty(FileHandle.standardInput.fileDescriptor) != 0
+
+        if isDirectLaunch {
+            // User double-clicked the app - run setup mode
+            debugLog("Direct launch detected - running setup mode")
+            runSetupMode()
+            return
+        }
+
+        // Launched from notification click - wait for delegate callback
         debugLog("parseNotification returned nil - waiting for notification click callback")
 
         // Initialize notification manager (sets up delegate)
@@ -1119,11 +1132,11 @@ func main() {
         let app = NSApplication.shared
         app.setActivationPolicy(.accessory)
 
-        // Set timeout to exit
+        // Set timeout to exit (if no notification click after 3 seconds, run setup)
         DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
             if !NotificationManager.shared.didHandleNotificationClick {
-                debugLog("No notification click received, exiting")
-                exit(0)
+                debugLog("No notification click received - running setup mode")
+                runSetupMode()
             }
         }
 
