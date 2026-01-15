@@ -41,30 +41,35 @@ cp -r "$BUILD_DIR/ai-notifier.app" "$DMG_DIR/"
 # Applications 바로가기 생성
 ln -s /Applications "$DMG_DIR/Applications"
 
-# README 추가
-cat > "$DMG_DIR/설치 방법.txt" << 'EOF'
-AI Notifier 설치 방법
-====================
+# 설치 안내 파일 추가
+cat > "$DMG_DIR/READ ME - Install Guide.txt" << 'EOF'
+========================================
+   AI Notifier - Installation Guide
+========================================
 
-1. ai-notifier.app을 Applications 폴더로 드래그하세요.
+   STEP 1: Drag app to Applications
 
-2. 앱을 더블클릭하면 알림 권한 설정 화면이 나타납니다.
+        [ai-notifier.app] ---> [Applications]
 
-3. "허용"을 클릭하면 설치가 완료됩니다.
+   STEP 2: Double-click the app (IMPORTANT!)
 
----
+        Open Applications folder
+        Double-click ai-notifier.app
+        Click "Allow" for notifications
 
-지원하는 CLI:
-• Claude Code (Anthropic)
-• Gemini CLI (Google)
-• Codex CLI (OpenAI)
+   STEP 3: Done!
 
-CLI Hook 설정은 터미널에서 다음 명령을 실행하세요:
-./install.sh (레포지토리에서 다운로드)
+========================================
 
-또는 수동으로 각 CLI의 settings.json에 hook을 추가하세요.
+Supported CLI:
+  - Claude Code (Anthropic)
+  - Gemini CLI (Google)
+  - Codex CLI (OpenAI)
 
-문의: https://github.com/sokojh/ai-notifier-swift
+Auto-configure hooks:
+  Run ./install.sh from the repository
+
+GitHub: https://github.com/sokojh/ai-notifier-swift
 EOF
 
 echo "✓ 스테이징 완료"
@@ -99,9 +104,9 @@ tell application "Finder"
         set icon size of viewOptions to 80
 
         -- 아이콘 위치 설정
-        set position of item "ai-notifier.app" of container window to {120, 180}
-        set position of item "Applications" of container window to {380, 180}
-        set position of item "설치 방법.txt" of container window to {250, 320}
+        set position of item "ai-notifier.app" of container window to {120, 200}
+        set position of item "Applications" of container window to {380, 200}
+        set position of item "READ ME - Install Guide.txt" of container window to {250, 80}
 
         close
         open
