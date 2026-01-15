@@ -207,10 +207,11 @@ struct TerminalActivator {
         // Focus terminal using VS Code URL scheme
         let task = Process()
         task.launchPath = "/usr/bin/open"
-        task.arguments = ["vscode://vscode.workbench.action.terminal.focus"]
+        task.arguments = ["vscode://command/workbench.action.terminal.focus"]
         task.standardOutput = FileHandle.nullDevice
         task.standardError = FileHandle.nullDevice
         try? task.run()
+        debugLog("VS Code terminal focus command sent")
     }
 
     private static func activateTerminalApp(tty: String?) {
