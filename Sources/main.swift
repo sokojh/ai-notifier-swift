@@ -86,6 +86,7 @@ enum CLISource: String, CaseIterable {
     case claude = "claude"
     case gemini = "gemini"
     case codex = "codex"
+    case opencode = "opencode"
     case unknown = "unknown"
 
     var displayName: String {
@@ -93,6 +94,7 @@ enum CLISource: String, CaseIterable {
         case .claude: return "Claude"
         case .gemini: return "Gemini"
         case .codex: return "Codex"
+        case .opencode: return "OpenCode"
         case .unknown: return "AI"
         }
     }
@@ -102,6 +104,7 @@ enum CLISource: String, CaseIterable {
         case .claude: return "claude-logo"
         case .gemini: return "gemini-logo"
         case .codex: return "codex-logo"
+        case .opencode: return "opencode-logo"
         case .unknown: return "claude-logo"
         }
     }
@@ -569,13 +572,21 @@ struct HookDataParser {
     /// Detect CLI source from environment or data
     static func detectCLI(from data: [String: Any]?) -> CLISource {
         // Check environment variables
+        if ProcessInfo.processInfo.environment["OPENCODE"] != nil {
+            return .opencode
+        }
+
         if ProcessInfo.processInfo.environment["CLAUDE_CODE"] != nil ||
            ProcessInfo.processInfo.environment["CLAUDE_PROJECT_ROOT"] != nil {
             return .claude
         }
 
-        // Check for Gemini-specific fields
+        // Check for Gemini-specific fields or OpenCode cli field
         if let data = data {
+            // Check cli field (OpenCode sends this)
+            if let cli = data["cli"] as? String, cli == "opencode" {
+                return .opencode
+            }
             if data["llm_response"] != nil || data["modelResponse"] != nil || data["finishReason"] != nil {
                 return .gemini
             }
@@ -633,6 +644,8 @@ struct HookDataParser {
             return parseGeminiNotification(data: data, title: title, cli: cli, terminalInfo: terminalInfo)
         case .codex:
             return parseCodexNotification(data: data, title: title, cli: cli, terminalInfo: terminalInfo)
+        case .opencode:
+            return parseOpenCodeNotification(data: data, title: title, cli: cli, terminalInfo: terminalInfo)
         case .unknown:
             return NotificationContent(
                 title: title,
@@ -925,6 +938,32 @@ struct HookDataParser {
         }
         return ""
     }
+
+    // MARK: - OpenCode Parsing
+
+    private static func parseOpenCodeNotification(data: [String: Any], title: String, cli: CLISource, terminalInfo: TerminalInfo) -> NotificationContent? {
+        let hookName = data["hook_event_name"] as? String ?? ""
+
+        // session.idle event (sent as Stop by plugin)
+        if hookName == "Stop" {
+            return NotificationContent(
+                title: title,
+                subtitle: "응답 완료",
+                body: "응답을 확인하세요",
+                cli: cli,
+                terminalInfo: terminalInfo
+            )
+        }
+
+        // Default
+        return NotificationContent(
+            title: title,
+            subtitle: "알림",
+            body: "상태가 변경되었습니다",
+            cli: cli,
+            terminalInfo: terminalInfo
+        )
+    }
 }
 
 // MARK: - Ntfy Client (Optional Push Notification)
@@ -936,6 +975,7 @@ struct NtfyClient {
         case .claude: return "robot"
         case .gemini: return "sparkles"
         case .codex: return "computer"
+        case .opencode: return "zap"
         case .unknown: return "bell"
         }
     }
@@ -1440,13 +1480,77 @@ struct CLIHookInstaller {
         }
     }
 
+    // MARK: - OpenCode CLI Hook Installation (Plugin-based)
+
+    static func installOpenCodeHook() -> InstallResult {
+        let pluginDir = NSString(string: "~/.opencode/plugin").expandingTildeInPath
+        let pluginFile = "\(pluginDir)/ai-notifier.ts"
+        let openCodeDir = NSString(string: "~/.opencode").expandingTildeInPath
+
+        // Check if OpenCode CLI is installed
+        let openCodeExists = FileManager.default.fileExists(atPath: openCodeDir) ||
+                            FileManager.default.fileExists(atPath: "/usr/local/bin/opencode") ||
+                            FileManager.default.fileExists(atPath: "/opt/homebrew/bin/opencode")
+
+        if !openCodeExists {
+            return .notFound
+        }
+
+        // Check if plugin already exists
+        if FileManager.default.fileExists(atPath: pluginFile) {
+            if let content = try? String(contentsOfFile: pluginFile, encoding: .utf8),
+               content.contains("ai-notifier") {
+                return .alreadyInstalled
+            }
+        }
+
+        // Create plugin directory if needed
+        try? FileManager.default.createDirectory(atPath: pluginDir, withIntermediateDirectories: true)
+
+        // Create plugin code
+        let pluginCode = """
+        import { defineHook } from "opencode";
+        import { execSync } from "child_process";
+
+        export default defineHook({
+          name: "ai-notifier",
+          events: {
+            "session.idle": async (ctx) => {
+              try {
+                const data = JSON.stringify({
+                  hook_event_name: "Stop",
+                  cwd: process.cwd(),
+                  cli: "opencode"
+                });
+                execSync(`echo '${data.replace(/'/g, "'\\''")}' | /Applications/ai-notifier.app/Contents/MacOS/ai-notifier`, {
+                  stdio: 'ignore',
+                  timeout: 5000
+                });
+              } catch (e) {
+                // Ignore errors
+              }
+            }
+          }
+        });
+        """
+
+        // Write plugin file
+        do {
+            try pluginCode.write(toFile: pluginFile, atomically: true, encoding: .utf8)
+            return .installed
+        } catch {
+            return .error(error.localizedDescription)
+        }
+    }
+
     // MARK: - Install All Hooks
 
-    static func installAllHooks() -> (claude: InstallResult, gemini: InstallResult, codex: InstallResult) {
+    static func installAllHooks() -> (claude: InstallResult, gemini: InstallResult, codex: InstallResult, opencode: InstallResult) {
         return (
             claude: installClaudeHook(),
             gemini: installGeminiHook(),
-            codex: installCodexHook()
+            codex: installCodexHook(),
+            opencode: installOpenCodeHook()
         )
     }
 
@@ -1620,9 +1724,10 @@ func installHooksAndShowResult() {
     messages.append(CLIHookInstaller.resultToString(results.claude, cliName: "Claude Code"))
     messages.append(CLIHookInstaller.resultToString(results.gemini, cliName: "Gemini CLI"))
     messages.append(CLIHookInstaller.resultToString(results.codex, cliName: "Codex CLI"))
+    messages.append(CLIHookInstaller.resultToString(results.opencode, cliName: "OpenCode"))
 
     // Count installed
-    let installedCount = [results.claude, results.gemini, results.codex].filter {
+    let installedCount = [results.claude, results.gemini, results.codex, results.opencode].filter {
         if case .installed = $0 { return true }
         if case .alreadyInstalled = $0 { return true }
         return false
@@ -1635,7 +1740,7 @@ func installHooksAndShowResult() {
         alert.informativeText = "알림 권한: 활성화됨\n\nCLI 훅 설정:\n• \(messages.joined(separator: "\n• "))\n\n이제 CLI 응답 완료 시 알림을 받을 수 있습니다!"
         alert.alertStyle = .informational
     } else {
-        alert.informativeText = "알림 권한: 활성화됨\n\nCLI 훅 설정:\n• \(messages.joined(separator: "\n• "))\n\n설치된 CLI가 없습니다. Claude Code, Gemini CLI, 또는 Codex CLI를 설치한 후 다시 실행해주세요."
+        alert.informativeText = "알림 권한: 활성화됨\n\nCLI 훅 설정:\n• \(messages.joined(separator: "\n• "))\n\n설치된 CLI가 없습니다. Claude Code, Gemini CLI, Codex CLI, 또는 OpenCode를 설치한 후 다시 실행해주세요."
         alert.alertStyle = .warning
     }
 
