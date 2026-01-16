@@ -71,6 +71,7 @@ osascript << EOF
 tell application "Finder"
     tell disk "$APP_NAME"
         open
+        delay 1
         set current view of container window to icon view
         set toolbar visible of container window to false
         set statusbar visible of container window to false
@@ -86,16 +87,23 @@ tell application "Finder"
         set position of item "ai-notifier.app" of container window to {125, 150}
         set position of item "Applications" of container window to {375, 150}
 
+        update without registering applications
+        delay 1
         close
         open
-        update without registering applications
         delay 2
     end tell
 end tell
 EOF
 
-# 동기화 및 언마운트
+# DS_Store가 제대로 기록되도록 대기
+sleep 3
 sync
+
+# Finder 캐시 정리
+osascript -e 'tell application "Finder" to close every window' 2>/dev/null || true
+sleep 1
+
 hdiutil detach "$MOUNT_DIR"
 
 # 최종 DMG 변환 (압축)
