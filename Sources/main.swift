@@ -1404,6 +1404,22 @@ class SetupAppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidBecomeActive(_ notification: Notification) {
         debugLog("SetupAppDelegate: applicationDidBecomeActive")
+
+        // Check if this is a notification click (recent session file exists)
+        let lastSessionFile = "/tmp/.ai-notifier-last-session.json"
+        if FileManager.default.fileExists(atPath: lastSessionFile) {
+            if let attrs = try? FileManager.default.attributesOfItem(atPath: lastSessionFile),
+               let modDate = attrs[.modificationDate] as? Date,
+               Date().timeIntervalSince(modDate) < 60 {
+                if let data = FileManager.default.contents(atPath: lastSessionFile),
+                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: String] {
+                    debugLog("SetupAppDelegate: Found recent session, activating terminal")
+                    let terminalInfo = TerminalInfo.from(dictionary: json)
+                    TerminalActivator.activate(terminalInfo)
+                    // Don't exit - let setup continue
+                }
+            }
+        }
     }
 
     private func showLoadingWindow() {
@@ -1677,43 +1693,47 @@ func main() {
         // 2. Launched from notification click (inputData empty)
         // 3. Launched directly by user (double-click from Finder/DMG)
 
-        // Check if launched directly (TTY or no stdin data)
-        let isDirectLaunch = isatty(FileHandle.standardInput.fileDescriptor) != 0
-
-        if isDirectLaunch {
-            // User double-clicked the app - run setup mode
-            debugLog("Direct launch detected - running setup mode")
-            runSetupMode()
-            return
-        }
-
         // If we had input data but parseNotification returned nil, it was debounced - exit silently
         if inputData != nil && !(inputData?.isEmpty ?? true) {
             debugLog("Debounced - exiting silently")
             return
         }
 
-        // Launched from notification click - wait for delegate callback
-        debugLog("parseNotification returned nil (no input data) - waiting for notification click callback")
+        // Check for saved session file first (notification click)
+        let lastSessionFile = "/tmp/.ai-notifier-last-session.json"
+        if FileManager.default.fileExists(atPath: lastSessionFile) {
+            // Check if session file is recent (within 60 seconds) - likely a notification click
+            if let attrs = try? FileManager.default.attributesOfItem(atPath: lastSessionFile),
+               let modDate = attrs[.modificationDate] as? Date,
+               Date().timeIntervalSince(modDate) < 60 {
+                if let data = FileManager.default.contents(atPath: lastSessionFile),
+                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: String] {
+                    debugLog("Found recent saved session: \(json)")
+                    let terminalInfo = TerminalInfo.from(dictionary: json)
+                    debugLog("Activating terminal from saved session: type=\(terminalInfo.type)")
+                    TerminalActivator.activate(terminalInfo)
 
-        // Initialize notification manager (sets up delegate)
-        _ = NotificationManager.shared
-
-        // Use NSApplication for better delegate handling
-        debugLog("Starting NSApplication run loop...")
-        let app = NSApplication.shared
-        app.setActivationPolicy(.accessory)
-
-        // Set timeout to exit (if no notification click after 3 seconds, run setup)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-            if !NotificationManager.shared.didHandleNotificationClick {
-                debugLog("No notification click received - running setup mode")
-                runSetupMode()
+                    // Give time for activation to complete
+                    Thread.sleep(forTimeInterval: 0.5)
+                    exit(0)
+                }
+            } else {
+                debugLog("Session file exists but is old (>60s)")
             }
         }
 
-        app.run()
-        return  // Won't reach here, but for clarity
+        // Check if launched directly (TTY) - user double-clicked the app
+        let isDirectLaunch = isatty(FileHandle.standardInput.fileDescriptor) != 0
+        if isDirectLaunch {
+            debugLog("Direct launch detected - running setup mode")
+            runSetupMode()
+            return
+        }
+
+        // No recent session and not direct launch - run setup mode
+        debugLog("No recent session found - running setup mode")
+        runSetupMode()
+        return
     }
 
     debugLog("Notification: title=\(content.title), subtitle=\(content.subtitle), body=\(content.body.prefix(50))...")
@@ -1729,22 +1749,15 @@ func main() {
     }
 
     // Send notification
-    let semaphore = DispatchSemaphore(value: 0)
-    var success = false
-
-    NotificationManager.shared.sendNotification(content: content) { result in
-        success = result
-        semaphore.signal()
+    NotificationManager.shared.sendNotification(content: content) { success in
+        debugLog("Notification sent: \(success ? "success" : "failed")")
     }
 
-    // Wait with timeout
-    let timeout = semaphore.wait(timeout: .now() + 3.0)
-
-    if timeout == .timedOut {
-        exit(0)
-    }
-
-    exit(success ? 0 : 1)
+    // Keep app running in background to handle notification clicks
+    debugLog("Starting background run loop for notification click handling...")
+    let app = NSApplication.shared
+    app.setActivationPolicy(.accessory)  // Hide from dock
+    app.run()
 }
 
 // Run main
