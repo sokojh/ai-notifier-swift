@@ -11,6 +11,7 @@ Built with Swift using `UNUserNotificationCenter` for maximum compatibility with
 - **Modern API**: Uses `UNUserNotificationCenter` for latest macOS compatibility
 - **Multi-CLI Support**: Works with Claude Code, Gemini CLI, and Codex CLI
 - **CLI-specific Icons**: Shows different icons for each CLI
+- **Click-to-Focus**: 알림 클릭 시 해당 터미널로 자동 이동 (iTerm2, Terminal.app, Kitty 등)
 - **ntfy Integration** (Optional): Push notifications to any device via [ntfy.sh](https://ntfy.sh)
 
 ## Requirements

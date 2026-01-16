@@ -36,6 +36,116 @@ ntfy API 공식 문서 기준:
 - **Priority**: 숫자 1-5 (`min`→1, `low`→2, `default`→3, `high`→4, `urgent`→5)
 - **Title**: `CLI명 - 프로젝트명 - 상태` 형식
 
+---
+
+## 터미널 지원 상세
+
+### 터미널 감지 방식
+
+| 터미널 | 환경변수 | 세션 식별자 |
+|--------|----------|-------------|
+| iTerm2 | `TERM_PROGRAM=iTerm.app` | `ITERM_SESSION_ID` (UUID) |
+| Terminal.app | `TERM_PROGRAM=Apple_Terminal` | `TTY` (e.g., `/dev/ttys001`) |
+| VSCode | `TERM_PROGRAM=vscode` | `PWD` (cwd) |
+| Ghostty | `TERM_PROGRAM=ghostty` | 없음 |
+| Warp | `TERM_PROGRAM=WarpTerminal` | 없음 |
+| Kitty | `KITTY_WINDOW_ID` | `KITTY_WINDOW_ID` |
+
+### 터미널별 활성화 방식
+
+**iTerm2** - AppleScript로 UUID 매칭하여 정확한 세션 선택
+```applescript
+tell application "iTerm2"
+    repeat with w in windows
+        repeat with t in tabs of w
+            repeat with s in sessions of t
+                if unique id of s is "UUID" then
+                    select t
+                end if
+            end repeat
+        end repeat
+    end repeat
+    activate
+end tell
+```
+
+**Terminal.app** - AppleScript로 TTY 매칭하여 탭 선택
+```applescript
+tell application "Terminal"
+    repeat with w in windows
+        repeat with t in tabs of w
+            if tty of t is "/dev/ttys001" then
+                set selected tab of w to t
+            end if
+        end repeat
+    end repeat
+    activate
+end tell
+```
+
+**VSCode** - `code <cwd>` CLI 실행 후 AppleScript activate
+- 주의: Electron 앱 실행으로 약간 느림
+- 내부 터미널 탭 선택 불가 (폴더 창만 활성화)
+
+**Kitty** - `kitten @ focus-window` 원격 제어
+```bash
+kitten @ focus-window --match id:$KITTY_WINDOW_ID
+```
+- **필수 설정**: `~/.config/kitty/kitty.conf`에 `allow_remote_control yes`
+- 원격 제어 실패 시 AppleScript fallback
+
+**Ghostty, Warp** - AppleScript activate만 (탭 선택 불가)
+- 세션 식별 API 미지원
+- 앱만 활성화되고 사용자가 수동으로 탭 선택 필요
+
+---
+
+## 주의사항
+
+### VSCode fallback 버그 (수정됨)
+
+**문제**: Unknown 터미널(Ghostty 등)에서 cwd만 있으면 VSCode로 fallback되던 버그
+- 증상: Ghostty에서 알림 클릭 시 VSCode가 열림
+
+**해결**: Unknown 터미널은 VSCode fallback 제거, 앱 활성화만 시도
+```swift
+case .unknown:
+    if info.sessionId != nil {
+        activateITerm2(sessionId: info.sessionId)
+    } else if info.tty != nil {
+        activateTerminalApp(tty: info.tty)
+    }
+    // VSCode fallback 제거
+```
+
+### Kitty 원격 제어 설정
+
+Kitty는 기본적으로 원격 제어가 비활성화되어 있음.
+
+```bash
+# ~/.config/kitty/kitty.conf
+allow_remote_control yes
+```
+
+설정하지 않으면 `kitten @ focus-window` 실패 → AppleScript fallback (앱만 활성화)
+
+### VSCode 느린 활성화
+
+현재 `code <cwd>` CLI 실행 방식은 Electron 특성상 느림.
+
+**개선 가능 (미구현):**
+```applescript
+tell application "System Events"
+    tell process "Code"
+        set w to first window whose title contains "project-name"
+        perform action "AXRaise" of w
+    end tell
+end tell
+```
+→ cwd에서 폴더명 추출 후 창 제목 매칭으로 빠르게 포커스 가능
+
+---
+
 ## 디버깅
 
 **로그 파일:** `/tmp/ai-notifier-debug.log`
@@ -54,9 +164,25 @@ pkill -f "ai-notifier"
 ## 테스트
 
 ```bash
-# 알림 테스트
+# 알림 테스트 (터미널 타입별)
 echo '{"hook_event_name":"Stop","cwd":"/tmp/test"}' | /Applications/ai-notifier.app/Contents/MacOS/ai-notifier
 
 # ntfy 테스트 (config 설정 필요)
 echo '{"hook_event_name":"Stop"}' | /Applications/ai-notifier.app/Contents/MacOS/ai-notifier
+
+# 디버그 로그 확인
+DEBUG=1 echo '{}' | /Applications/ai-notifier.app/Contents/MacOS/ai-notifier
+```
+
+---
+
+## 파일 구조
+
+```
+Sources/main.swift          # 메인 앱 코드
+├── TerminalType           # 터미널 타입 enum (iTerm2, VSCode, Kitty 등)
+├── TerminalInfo           # 터미널 정보 구조체 (sessionId, cwd, tty 등)
+├── TerminalActivator      # 터미널 활성화 로직
+├── NotificationManager    # UNUserNotificationCenter 래퍼
+└── NtfyClient            # ntfy HTTP 클라이언트
 ```
