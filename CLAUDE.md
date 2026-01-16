@@ -102,6 +102,30 @@ kitten @ focus-window --match id:$KITTY_WINDOW_ID
 
 ## 주의사항
 
+### ⚠️ 신규 설치 유저 관점 필수
+
+**개발 시 항상 "처음 설치하는 유저" 관점에서 테스트할 것.**
+
+자동 설치/설정 관련 기능은 기존 개발 환경에서 테스트하면 놓치기 쉬움:
+- hook 자동 설정
+- 권한 요청 다이얼로그
+- 첫 실행 감지 로직
+- config 파일 생성
+
+**테스트 체크리스트:**
+```bash
+# 신규 설치 시뮬레이션
+rm -f ~/.ai-notifier-configured
+rm -rf /Applications/ai-notifier.app
+# settings.json에서 ai-notifier 관련 hook 제거 후 테스트
+```
+
+**과거 버그 사례:**
+- DMG 설치 후 앱 더블클릭 시 hook 자동 설정 안 됨 (첫 실행 감지 누락)
+- install.sh와 앱 내 CLIHookInstaller 로직 불일치
+
+---
+
 ### VSCode fallback 버그 (수정됨)
 
 **문제**: Unknown 터미널(Ghostty 등)에서 cwd만 있으면 VSCode로 fallback되던 버그
