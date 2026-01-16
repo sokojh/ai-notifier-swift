@@ -129,27 +129,6 @@ allow_remote_control yes
 
 설정하지 않으면 `kitten @ focus-window` 실패 → AppleScript fallback (앱만 활성화)
 
-### VSCode 빠른 활성화 (AXRaise)
-
-**현재 동작 방식:**
-1. AXRaise 시도 (빠른 경로) - cwd에서 폴더명 추출 후 창 제목 매칭
-2. AXRaise 실패 시 `code <cwd>` CLI 실행 (느린 경로, fallback)
-
-```applescript
-tell application "System Events"
-    tell process "Code"
-        set targetWindow to first window whose name contains "폴더명"
-        perform action "AXRaise" of targetWindow
-    end tell
-end tell
-tell application "Visual Studio Code" to activate
-```
-
-**주의:**
-- AXRaise는 접근성 권한 필요 (시스템 설정 > 개인정보 보호 및 보안 > 접근성)
-- 창 제목에 폴더명이 포함되어야 매칭 가능
-- 같은 폴더명을 가진 창이 여러 개면 첫 번째 창이 활성화됨
-
 ---
 
 ## 디버깅
