@@ -660,8 +660,32 @@ struct HookDataParser {
         )
     }
 
+    /// Check if two ISO8601 timestamps are close (within tolerance seconds)
+    private static func isTimestampClose(_ ts1: String, _ ts2: String, toleranceSeconds: Double) -> Bool {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+
+        // Try parsing with fractional seconds first, then without
+        func parseDate(_ str: String) -> Date? {
+            if let date = formatter.date(from: str) {
+                return date
+            }
+            formatter.formatOptions = [.withInternetDateTime]
+            return formatter.date(from: str)
+        }
+
+        guard let date1 = parseDate(ts1), let date2 = parseDate(ts2) else {
+            return true  // If can't parse, assume they're close
+        }
+
+        return abs(date1.timeIntervalSince(date2)) <= toleranceSeconds
+    }
+
     private static func extractGeminiResponse(from data: [String: Any]) -> String {
-        // Try llm_response
+        // NOTE: Don't use transcript_path - it has timing issues where old responses are returned
+        // Instead, only use llm_response from the event itself
+
+        // Try llm_response (from the current event)
         if let llmResponse = data["llm_response"] as? [String: Any] {
             // 1. Direct text field
             if let text = llmResponse["text"] as? String, !text.isEmpty {
@@ -683,7 +707,7 @@ struct HookDataParser {
             }
         }
 
-        // Try modelResponse
+        // PRIORITY 3: Try modelResponse
         if let modelResponse = data["modelResponse"] as? [String: Any] {
             if let candidates = modelResponse["candidates"] as? [[String: Any]] {
                 for candidate in candidates {
@@ -691,29 +715,6 @@ struct HookDataParser {
                        let parts = content["parts"] as? [[String: Any]] {
                         for part in parts {
                             if let text = part["text"] as? String, !text.isEmpty {
-                                return TextUtils.getPreviewText(text)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // Try transcript_path fallback
-        if let transcriptPath = data["transcript_path"] as? String,
-           FileManager.default.fileExists(atPath: transcriptPath) {
-            if let content = try? String(contentsOfFile: transcriptPath, encoding: .utf8),
-               let jsonData = content.data(using: .utf8),
-               let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
-               let messages = json["messages"] as? [[String: Any]] {
-                for msg in messages.reversed() {
-                    if msg["type"] as? String == "gemini" {
-                        if let msgContent = msg["content"] as? String, !msgContent.isEmpty {
-                            return TextUtils.getPreviewText(msgContent)
-                        }
-                        if let parts = msg["content"] as? [[String: Any]] {
-                            let text = parts.compactMap { $0["text"] as? String }.joined(separator: " ")
-                            if !text.isEmpty {
                                 return TextUtils.getPreviewText(text)
                             }
                         }
@@ -925,61 +926,405 @@ class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     }
 }
 
+// MARK: - CLI Hook Installer
+
+struct CLIHookInstaller {
+    static let notifierPath = "/Applications/ai-notifier.app/Contents/MacOS/ai-notifier"
+
+    enum InstallResult {
+        case installed
+        case alreadyInstalled
+        case notFound
+        case error(String)
+    }
+
+    // MARK: - Claude Code Hook Installation
+
+    static func installClaudeHook() -> InstallResult {
+        let settingsPath = NSString(string: "~/.claude/settings.json").expandingTildeInPath
+        let claudeDir = NSString(string: "~/.claude").expandingTildeInPath
+
+        // Check if Claude Code is installed (settings dir exists or claude command exists)
+        let claudeExists = FileManager.default.fileExists(atPath: claudeDir) ||
+                          FileManager.default.fileExists(atPath: "/usr/local/bin/claude") ||
+                          FileManager.default.fileExists(atPath: "/opt/homebrew/bin/claude")
+
+        if !claudeExists {
+            return .notFound
+        }
+
+        // Create directory if needed
+        try? FileManager.default.createDirectory(atPath: claudeDir, withIntermediateDirectories: true)
+
+        // Read existing settings or create new
+        var settings: [String: Any] = [:]
+        if let data = FileManager.default.contents(atPath: settingsPath),
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            settings = json
+        }
+
+        // Check if hooks already configured
+        if let hooks = settings["hooks"] as? [String: Any],
+           let stopHooks = hooks["Stop"] as? [[String: Any]] {
+            for hook in stopHooks {
+                if let hooksList = hook["hooks"] as? [[String: Any]] {
+                    for h in hooksList {
+                        if let cmd = h["command"] as? String, cmd.contains("ai-notifier") {
+                            return .alreadyInstalled
+                        }
+                    }
+                }
+            }
+        }
+
+        // Create hook configuration
+        let hookConfig: [String: Any] = [
+            "matcher": "",
+            "hooks": [
+                ["type": "command", "command": notifierPath]
+            ]
+        ]
+
+        var hooks = settings["hooks"] as? [String: Any] ?? [:]
+
+        // Add Stop hook
+        var stopHooks = hooks["Stop"] as? [[String: Any]] ?? []
+        stopHooks.append(hookConfig)
+        hooks["Stop"] = stopHooks
+
+        // Add Notification hook
+        var notificationHooks = hooks["Notification"] as? [[String: Any]] ?? []
+        notificationHooks.append(hookConfig)
+        hooks["Notification"] = notificationHooks
+
+        settings["hooks"] = hooks
+
+        // Write settings
+        do {
+            let data = try JSONSerialization.data(withJSONObject: settings, options: [.prettyPrinted, .sortedKeys])
+            try data.write(to: URL(fileURLWithPath: settingsPath))
+            return .installed
+        } catch {
+            return .error(error.localizedDescription)
+        }
+    }
+
+    // MARK: - Gemini CLI Hook Installation
+
+    static func installGeminiHook() -> InstallResult {
+        let settingsPath = NSString(string: "~/.gemini/settings.json").expandingTildeInPath
+        let geminiDir = NSString(string: "~/.gemini").expandingTildeInPath
+
+        // Check if Gemini CLI is installed
+        let geminiExists = FileManager.default.fileExists(atPath: geminiDir) ||
+                          FileManager.default.fileExists(atPath: "/usr/local/bin/gemini") ||
+                          FileManager.default.fileExists(atPath: "/opt/homebrew/bin/gemini")
+
+        if !geminiExists {
+            return .notFound
+        }
+
+        // Create directory if needed
+        try? FileManager.default.createDirectory(atPath: geminiDir, withIntermediateDirectories: true)
+
+        // Read existing settings or create new
+        var settings: [String: Any] = [:]
+        if let data = FileManager.default.contents(atPath: settingsPath),
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            settings = json
+        }
+
+        // Check if hooks already configured (can be string or array format)
+        if let hooks = settings["hooks"] as? [String: Any] {
+            // Check string format
+            if let afterModel = hooks["AfterModel"] as? String, afterModel.contains("ai-notifier") {
+                return .alreadyInstalled
+            }
+            // Check array format
+            if let afterModelArray = hooks["AfterModel"] as? [[String: Any]] {
+                for item in afterModelArray {
+                    if let hooksList = item["hooks"] as? [[String: Any]] {
+                        for h in hooksList {
+                            if let cmd = h["command"] as? String, cmd.contains("ai-notifier") {
+                                return .alreadyInstalled
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Create hook configuration (array format - compatible with Gemini CLI)
+        let hookConfig: [String: Any] = [
+            "hooks": [
+                [
+                    "name": "ai-notifier",
+                    "type": "command",
+                    "command": notifierPath,
+                    "timeout": 5000
+                ]
+            ]
+        ]
+
+        var hooks = settings["hooks"] as? [String: Any] ?? [:]
+        hooks["enabled"] = true
+
+        // Add AfterModel hook
+        var afterModelHooks = hooks["AfterModel"] as? [[String: Any]] ?? []
+        afterModelHooks.append(hookConfig)
+        hooks["AfterModel"] = afterModelHooks
+
+        // Add Notification hook (for permission prompts)
+        var notificationHooks = hooks["Notification"] as? [[String: Any]] ?? []
+        notificationHooks.append(hookConfig)
+        hooks["Notification"] = notificationHooks
+
+        settings["hooks"] = hooks
+
+        // Write settings
+        do {
+            let data = try JSONSerialization.data(withJSONObject: settings, options: [.prettyPrinted, .sortedKeys])
+            try data.write(to: URL(fileURLWithPath: settingsPath))
+            return .installed
+        } catch {
+            return .error(error.localizedDescription)
+        }
+    }
+
+    // MARK: - Codex CLI Hook Installation
+
+    static func installCodexHook() -> InstallResult {
+        let settingsPath = NSString(string: "~/.codex/config.json").expandingTildeInPath
+        let codexDir = NSString(string: "~/.codex").expandingTildeInPath
+
+        // Check if Codex CLI is installed
+        let codexExists = FileManager.default.fileExists(atPath: codexDir) ||
+                         FileManager.default.fileExists(atPath: "/usr/local/bin/codex") ||
+                         FileManager.default.fileExists(atPath: "/opt/homebrew/bin/codex")
+
+        if !codexExists {
+            return .notFound
+        }
+
+        // Create directory if needed
+        try? FileManager.default.createDirectory(atPath: codexDir, withIntermediateDirectories: true)
+
+        // Read existing settings or create new
+        var settings: [String: Any] = [:]
+        if let data = FileManager.default.contents(atPath: settingsPath),
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            settings = json
+        }
+
+        // Check if hooks already configured
+        if let hooks = settings["hooks"] as? [String: Any] {
+            if let onComplete = hooks["agent-turn-complete"] as? String, onComplete.contains("ai-notifier") {
+                return .alreadyInstalled
+            }
+        }
+
+        // Add hooks
+        var hooks = settings["hooks"] as? [String: Any] ?? [:]
+        hooks["agent-turn-complete"] = notifierPath
+        hooks["approval-requested"] = notifierPath
+        settings["hooks"] = hooks
+
+        // Write settings
+        do {
+            let data = try JSONSerialization.data(withJSONObject: settings, options: [.prettyPrinted, .sortedKeys])
+            try data.write(to: URL(fileURLWithPath: settingsPath))
+            return .installed
+        } catch {
+            return .error(error.localizedDescription)
+        }
+    }
+
+    // MARK: - Install All Hooks
+
+    static func installAllHooks() -> (claude: InstallResult, gemini: InstallResult, codex: InstallResult) {
+        return (
+            claude: installClaudeHook(),
+            gemini: installGeminiHook(),
+            codex: installCodexHook()
+        )
+    }
+
+    static func resultToString(_ result: InstallResult, cliName: String) -> String {
+        switch result {
+        case .installed:
+            return "\(cliName): 훅 설치 완료"
+        case .alreadyInstalled:
+            return "\(cliName): 이미 설정됨"
+        case .notFound:
+            return "\(cliName): 미설치 (건너뜀)"
+        case .error(let msg):
+            return "\(cliName): 오류 - \(msg)"
+        }
+    }
+}
+
 // MARK: - Setup Mode (Request Permission with GUI Dialog)
+
+class SetupAppDelegate: NSObject, NSApplicationDelegate {
+    private var loadingWindow: NSWindow?
+    private var loadingIndicator: NSProgressIndicator?
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        // App is fully launched, now safe to request permissions
+        debugLog("SetupAppDelegate: applicationDidFinishLaunching")
+
+        // Show loading window immediately
+        showLoadingWindow()
+
+        // Small delay to ensure app is fully active
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            self.requestPermissionAndInstallHooks()
+        }
+    }
+
+    func applicationDidBecomeActive(_ notification: Notification) {
+        debugLog("SetupAppDelegate: applicationDidBecomeActive")
+    }
+
+    private func showLoadingWindow() {
+        // Create a small loading window
+        let windowRect = NSRect(x: 0, y: 0, width: 280, height: 100)
+        let window = NSWindow(
+            contentRect: windowRect,
+            styleMask: [.titled],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "AI Notifier"
+        window.center()
+        window.isReleasedWhenClosed = false
+
+        // Create content view
+        let contentView = NSView(frame: windowRect)
+
+        // Loading indicator
+        let indicator = NSProgressIndicator(frame: NSRect(x: 120, y: 50, width: 40, height: 40))
+        indicator.style = .spinning
+        indicator.startAnimation(nil)
+        contentView.addSubview(indicator)
+
+        // Label
+        let label = NSTextField(labelWithString: "설정 준비 중...")
+        label.frame = NSRect(x: 0, y: 15, width: 280, height: 20)
+        label.alignment = .center
+        label.font = NSFont.systemFont(ofSize: 13)
+        contentView.addSubview(label)
+
+        window.contentView = contentView
+        window.makeKeyAndOrderFront(nil)
+
+        self.loadingWindow = window
+        self.loadingIndicator = indicator
+    }
+
+    func hideLoadingWindow() {
+        loadingIndicator?.stopAnimation(nil)
+        loadingWindow?.close()
+        loadingWindow = nil
+    }
+
+    private func requestPermissionAndInstallHooks() {
+        let center = UNUserNotificationCenter.current()
+
+        center.getNotificationSettings { settings in
+            DispatchQueue.main.async {
+                // Hide loading window before showing dialogs
+                self.hideLoadingWindow()
+
+                if settings.authorizationStatus == .authorized {
+                    // Already authorized, just install hooks
+                    debugLog("Already authorized, installing hooks")
+                    installHooksAndShowResult()
+                } else {
+                    // Request authorization
+                    debugLog("Requesting authorization")
+                    self.requestAuthorization()
+                }
+            }
+        }
+    }
+
+    private func requestAuthorization() {
+        let center = UNUserNotificationCenter.current()
+
+        center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    debugLog("Authorization error: \(error.localizedDescription)")
+                }
+
+                if !granted {
+                    let alert = NSAlert()
+                    alert.messageText = "AI Notifier"
+                    alert.informativeText = "알림 권한이 필요합니다.\n\n시스템 설정 > 알림 > AI Notifier에서 '알림 허용'을 켜주세요."
+                    alert.alertStyle = .warning
+                    alert.addButton(withTitle: "설정 열기")
+                    alert.addButton(withTitle: "닫기")
+
+                    if alert.runModal() == .alertFirstButtonReturn {
+                        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension")!)
+                    }
+                    exit(1)
+                }
+
+                // Permission granted, continue to hook installation
+                debugLog("Permission granted, installing hooks")
+                installHooksAndShowResult()
+            }
+        }
+    }
+}
 
 func runSetupMode() {
     let app = NSApplication.shared
     app.setActivationPolicy(.regular)
+
+    let delegate = SetupAppDelegate()
+    app.delegate = delegate
+
+    // Activate app after delegate is set
     app.activate(ignoringOtherApps: true)
 
-    let center = UNUserNotificationCenter.current()
-
-    let semaphore = DispatchSemaphore(value: 0)
-    var currentStatus: UNAuthorizationStatus = .notDetermined
-
-    center.getNotificationSettings { settings in
-        currentStatus = settings.authorizationStatus
-        semaphore.signal()
-    }
-    semaphore.wait()
-
-    if currentStatus == .authorized {
-        let alert = NSAlert()
-        alert.messageText = "AI Notifier"
-        alert.informativeText = "알림이 이미 활성화되어 있습니다!\n\nClaude, Gemini, Codex CLI에서 알림을 받을 수 있습니다."
-        alert.alertStyle = .informational
-        alert.addButton(withTitle: "확인")
-        alert.runModal()
-        exit(0)
-    }
-
-    center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
-        DispatchQueue.main.async {
-            let alert = NSAlert()
-            alert.messageText = "AI Notifier"
-
-            if granted {
-                alert.informativeText = "알림이 활성화되었습니다!\n\nClaude, Gemini, Codex CLI에서 알림을 받을 수 있습니다."
-                alert.alertStyle = .informational
-            } else {
-                alert.informativeText = "알림 권한이 필요합니다.\n\n시스템 설정 > 알림 > AI Notifier에서 '알림 허용'을 켜주세요."
-                alert.alertStyle = .warning
-                alert.addButton(withTitle: "설정 열기")
-                alert.addButton(withTitle: "닫기")
-
-                if alert.runModal() == .alertFirstButtonReturn {
-                    NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension")!)
-                }
-                exit(1)
-            }
-
-            alert.addButton(withTitle: "확인")
-            alert.runModal()
-            exit(0)
-        }
-    }
-
+    debugLog("Starting setup mode app.run()")
     app.run()
+}
+
+func installHooksAndShowResult() {
+    // Step 2: Install CLI hooks
+    let results = CLIHookInstaller.installAllHooks()
+
+    // Build result message
+    var messages: [String] = []
+    messages.append(CLIHookInstaller.resultToString(results.claude, cliName: "Claude Code"))
+    messages.append(CLIHookInstaller.resultToString(results.gemini, cliName: "Gemini CLI"))
+    messages.append(CLIHookInstaller.resultToString(results.codex, cliName: "Codex CLI"))
+
+    // Count installed
+    let installedCount = [results.claude, results.gemini, results.codex].filter {
+        if case .installed = $0 { return true }
+        if case .alreadyInstalled = $0 { return true }
+        return false
+    }.count
+
+    let alert = NSAlert()
+    alert.messageText = "AI Notifier 설정 완료"
+
+    if installedCount > 0 {
+        alert.informativeText = "알림 권한: 활성화됨\n\nCLI 훅 설정:\n• \(messages.joined(separator: "\n• "))\n\n이제 CLI 응답 완료 시 알림을 받을 수 있습니다!"
+        alert.alertStyle = .informational
+    } else {
+        alert.informativeText = "알림 권한: 활성화됨\n\nCLI 훅 설정:\n• \(messages.joined(separator: "\n• "))\n\n설치된 CLI가 없습니다. Claude Code, Gemini CLI, 또는 Codex CLI를 설치한 후 다시 실행해주세요."
+        alert.alertStyle = .warning
+    }
+
+    alert.addButton(withTitle: "확인")
+    alert.runModal()
+    exit(0)
 }
 
 // MARK: - Debug Logging
@@ -1107,9 +1452,10 @@ func main() {
 
     // Parse notification content
     guard let content = HookDataParser.parseNotification(from: inputData, cli: cli) else {
-        // No input data - could be:
-        // 1. Launched from notification click
-        // 2. Launched directly by user (double-click from Finder/DMG)
+        // parseNotification returned nil - could be:
+        // 1. Debounced (inputData not empty but skipped)
+        // 2. Launched from notification click (inputData empty)
+        // 3. Launched directly by user (double-click from Finder/DMG)
 
         // Check if launched directly (TTY or no stdin data)
         let isDirectLaunch = isatty(FileHandle.standardInput.fileDescriptor) != 0
@@ -1121,8 +1467,14 @@ func main() {
             return
         }
 
+        // If we had input data but parseNotification returned nil, it was debounced - exit silently
+        if inputData != nil && !(inputData?.isEmpty ?? true) {
+            debugLog("Debounced - exiting silently")
+            return
+        }
+
         // Launched from notification click - wait for delegate callback
-        debugLog("parseNotification returned nil - waiting for notification click callback")
+        debugLog("parseNotification returned nil (no input data) - waiting for notification click callback")
 
         // Initialize notification manager (sets up delegate)
         _ = NotificationManager.shared

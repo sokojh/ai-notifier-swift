@@ -41,36 +41,12 @@ cp -r "$BUILD_DIR/ai-notifier.app" "$DMG_DIR/"
 # Applications 바로가기 생성
 ln -s /Applications "$DMG_DIR/Applications"
 
-# 설치 안내 파일 추가
-cat > "$DMG_DIR/READ ME - Install Guide.txt" << 'EOF'
-========================================
-   AI Notifier - Installation Guide
-========================================
-
-   STEP 1: Drag app to Applications
-
-        [ai-notifier.app] ---> [Applications]
-
-   STEP 2: Double-click the app (IMPORTANT!)
-
-        Open Applications folder
-        Double-click ai-notifier.app
-        Click "Allow" for notifications
-
-   STEP 3: Done!
-
-========================================
-
-Supported CLI:
-  - Claude Code (Anthropic)
-  - Gemini CLI (Google)
-  - Codex CLI (OpenAI)
-
-Auto-configure hooks:
-  Run ./install.sh from the repository
-
-GitHub: https://github.com/sokojh/ai-notifier-swift
-EOF
+# 배경 이미지 복사 (.background 폴더는 숨김 폴더)
+mkdir -p "$DMG_DIR/.background"
+if [ -f "$SCRIPT_DIR/Resources/dmg-background.png" ]; then
+    cp "$SCRIPT_DIR/Resources/dmg-background.png" "$DMG_DIR/.background/background.png"
+    echo "✓ 배경 이미지 복사됨"
+fi
 
 echo "✓ 스테이징 완료"
 
@@ -89,7 +65,7 @@ hdiutil create -volname "$APP_NAME" -srcfolder "$DMG_DIR" -ov -format UDRW "$TEM
 MOUNT_DIR=$(hdiutil attach -readwrite -noverify "$TEMP_DMG" | grep "/Volumes/" | sed 's/.*\(\/Volumes\/.*\)/\1/')
 echo "   마운트됨: $MOUNT_DIR"
 
-# Finder 설정 (아이콘 위치, 윈도우 크기 등)
+# Finder 설정 (아이콘 위치, 윈도우 크기, 배경 이미지 등)
 echo "   Finder 설정 중..."
 osascript << EOF
 tell application "Finder"
@@ -98,15 +74,17 @@ tell application "Finder"
         set current view of container window to icon view
         set toolbar visible of container window to false
         set statusbar visible of container window to false
-        set bounds of container window to {400, 100, 900, 450}
+        set bounds of container window to {400, 100, 900, 433}
         set viewOptions to icon view options of container window
         set arrangement of viewOptions to not arranged
-        set icon size of viewOptions to 80
+        set icon size of viewOptions to 72
 
-        -- 아이콘 위치 설정
-        set position of item "ai-notifier.app" of container window to {120, 200}
-        set position of item "Applications" of container window to {380, 200}
-        set position of item "READ ME - Install Guide.txt" of container window to {250, 80}
+        -- 배경 이미지 설정
+        set background picture of viewOptions to file ".background:background.png"
+
+        -- 아이콘 위치 설정 (배경 이미지에 맞게 조정)
+        set position of item "ai-notifier.app" of container window to {125, 150}
+        set position of item "Applications" of container window to {375, 150}
 
         close
         open
