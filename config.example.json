@@ -1,0 +1,12 @@
+{
+  "ntfy": {
+    "enabled": true,
+    "server": "https://ntfy.sh",
+    "topic": "your-topic-name",
+    "priority": "default",
+    "auth": {
+      "type": "bearer",
+      "token": "tk_your_token_here"
+    }
+  }
+}

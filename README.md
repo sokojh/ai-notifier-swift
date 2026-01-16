@@ -11,6 +11,7 @@ Built with Swift using `UNUserNotificationCenter` for maximum compatibility with
 - **Modern API**: Uses `UNUserNotificationCenter` for latest macOS compatibility
 - **Multi-CLI Support**: Works with Claude Code, Gemini CLI, and Codex CLI
 - **CLI-specific Icons**: Shows different icons for each CLI
+- **ntfy Integration** (Optional): Push notifications to any device via [ntfy.sh](https://ntfy.sh)
 
 ## Requirements
 
@@ -101,6 +102,82 @@ After installation, go to **System Settings → Notifications → AI Notifier**:
 
 1. Enable **Allow Notifications**
 2. Set notification style to **Alerts** (not Banners) to stack notifications
+
+## ntfy Integration (Optional)
+
+[ntfy](https://ntfy.sh)를 통해 모바일이나 다른 기기에서도 알림을 받을 수 있습니다.
+
+### 설정 방법
+
+1. 설정 파일 생성:
+
+```bash
+mkdir -p ~/.config/ai-notifier
+cp config.example.json ~/.config/ai-notifier/config.json
+```
+
+2. `~/.config/ai-notifier/config.json` 수정:
+
+```json
+{
+  "ntfy": {
+    "enabled": true,
+    "server": "https://ntfy.sh",
+    "topic": "your-unique-topic-name",
+    "priority": "default",
+    "auth": null
+  }
+}
+```
+
+### 설정 옵션
+
+| 옵션 | 설명 | 기본값 |
+|------|------|--------|
+| `enabled` | ntfy 활성화 여부 | `false` |
+| `server` | ntfy 서버 URL | `https://ntfy.sh` |
+| `topic` | 알림을 받을 토픽 이름 | (필수) |
+| `priority` | 알림 우선순위 (`min`, `low`, `default`, `high`, `urgent`) | `default` |
+| `auth` | 인증 정보 (선택) | `null` |
+
+### 인증 설정 (Self-hosted ntfy)
+
+Bearer 토큰 인증:
+```json
+{
+  "ntfy": {
+    "enabled": true,
+    "server": "https://your-ntfy-server.com",
+    "topic": "your-topic",
+    "auth": {
+      "type": "bearer",
+      "token": "tk_your_token_here"
+    }
+  }
+}
+```
+
+Basic 인증:
+```json
+{
+  "ntfy": {
+    "enabled": true,
+    "server": "https://your-ntfy-server.com",
+    "topic": "your-topic",
+    "auth": {
+      "type": "basic",
+      "username": "your-username",
+      "password": "your-password"
+    }
+  }
+}
+```
+
+### 모바일 앱 설정
+
+1. [ntfy 앱](https://ntfy.sh/#subscribe-phone) 설치 (iOS/Android)
+2. 설정한 토픽 구독 (예: `your-unique-topic-name`)
+3. AI 알림이 모바일에서도 수신됨
 
 ## Technical Details
 
