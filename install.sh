@@ -245,6 +245,7 @@ else
 fi
 
 # Codex CLI 설정
+# Note: notify must be at ROOT level in config.toml, NOT inside [notice] section!
 CODEX_CONFIG="$HOME/.codex/config.toml"
 if command -v codex &> /dev/null || [ -f "$CODEX_CONFIG" ]; then
     mkdir -p "$HOME/.codex"
@@ -257,30 +258,32 @@ if command -v codex &> /dev/null || [ -f "$CODEX_CONFIG" ]; then
 
     NOTIFY_LINE="notify = [\"$NOTIFIER_PATH\"]"
 
-    if ! grep -q "^\[notice\]$" "$CODEX_CONFIG" 2>/dev/null; then
-        # [notice] 섹션이 없으면 파일 앞에 추가
-        TEMP_FILE=$(mktemp)
-        cat > "$TEMP_FILE" << EOF
-# AI Notifier
-[notice]
-$NOTIFY_LINE
+    # Add notify at ROOT level (before first section [...])
+    TEMP_FILE=$(mktemp)
+    INSERTED=false
 
-EOF
-        if [ -f "$CODEX_CONFIG" ]; then
-            cat "$CODEX_CONFIG" >> "$TEMP_FILE"
-        fi
-        mv "$TEMP_FILE" "$CODEX_CONFIG"
-    else
-        # [notice] 섹션이 있으면 그 다음 줄에 notify 추가
-        TEMP_FILE=$(mktemp)
+    if [ -f "$CODEX_CONFIG" ] && [ -s "$CODEX_CONFIG" ]; then
         while IFS= read -r line || [ -n "$line" ]; do
-            echo "$line" >> "$TEMP_FILE"
-            if [ "$line" = "[notice]" ]; then
+            # Check if line is a section header [...]
+            if [ "$INSERTED" = "false" ] && echo "$line" | grep -q '^\[.*\]$'; then
+                # Insert notify before first section
                 echo "$NOTIFY_LINE" >> "$TEMP_FILE"
+                echo "" >> "$TEMP_FILE"
+                INSERTED=true
             fi
+            echo "$line" >> "$TEMP_FILE"
         done < "$CODEX_CONFIG"
-        mv "$TEMP_FILE" "$CODEX_CONFIG"
+
+        # If no sections found, append to end
+        if [ "$INSERTED" = "false" ]; then
+            echo "$NOTIFY_LINE" >> "$TEMP_FILE"
+        fi
+    else
+        # Empty or no config file
+        echo "$NOTIFY_LINE" > "$TEMP_FILE"
     fi
+
+    mv "$TEMP_FILE" "$CODEX_CONFIG"
     echo "   ✓ Codex CLI"
 else
     echo "   - Codex CLI (미설치)"
