@@ -1703,6 +1703,27 @@ func main() {
         return
     }
 
+    // Check for listen mode (background process for notification click handling)
+    if CommandLine.arguments.contains("--listen") {
+        debugLog("=== Listen mode started ===")
+
+        // Create lock file to prevent multiple listeners
+        let lockFile = "/tmp/.ai-notifier-listener.lock"
+        let pid = ProcessInfo.processInfo.processIdentifier
+        try? "\(pid)".write(toFile: lockFile, atomically: true, encoding: .utf8)
+        debugLog("Lock file created: \(lockFile) with pid \(pid)")
+
+        // Clean up lock file on exit
+        atexit {
+            try? FileManager.default.removeItem(atPath: "/tmp/.ai-notifier-listener.lock")
+        }
+
+        let app = NSApplication.shared
+        app.setActivationPolicy(.accessory)  // Hide from dock
+        app.run()
+        return
+    }
+
     // Check for URL scheme activation (ai-notifier://activate?...)
     if CommandLine.arguments.count > 1 {
         let arg = CommandLine.arguments[1]
@@ -1835,11 +1856,34 @@ func main() {
         debugLog("Notification sent: \(success ? "success" : "failed")")
     }
 
-    // Keep app running in background to handle notification clicks
-    debugLog("Starting background run loop for notification click handling...")
-    let app = NSApplication.shared
-    app.setActivationPolicy(.accessory)  // Hide from dock
-    app.run()
+    // Launch background process to handle notification clicks (if not already running)
+    // This allows the hook to complete immediately
+    let lockFile = "/tmp/.ai-notifier-listener.lock"
+    let listenerRunning = FileManager.default.fileExists(atPath: lockFile)
+
+    if !listenerRunning {
+        let execPath = ProcessInfo.processInfo.arguments[0]
+        debugLog("Launching background listener: \(execPath) --listen")
+
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: execPath)
+        task.arguments = ["--listen"]
+        task.standardOutput = FileHandle.nullDevice
+        task.standardError = FileHandle.nullDevice
+
+        do {
+            try task.run()
+            debugLog("Background listener started, pid=\(task.processIdentifier)")
+        } catch {
+            debugLog("Failed to start background listener: \(error)")
+        }
+    } else {
+        debugLog("Background listener already running, skipping spawn")
+    }
+
+    // Exit immediately so hook completes fast
+    debugLog("Main process exiting")
+    exit(0)
 }
 
 // Run main
