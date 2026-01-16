@@ -943,26 +943,48 @@ struct HookDataParser {
 
     private static func parseOpenCodeNotification(data: [String: Any], title: String, cli: CLISource, terminalInfo: TerminalInfo) -> NotificationContent? {
         let hookName = data["hook_event_name"] as? String ?? ""
+        let projectName = data["project_name"] as? String
+        let responsePreview = data["response_preview"] as? String
 
-        // session.idle event (sent as Stop by plugin)
-        if hookName == "Stop" {
+        // 프로젝트 이름이 있으면 타이틀에 포함
+        let displayTitle = projectName != nil ? "\(title) - \(projectName!)" : title
+
+        switch hookName {
+        case "complete", "Stop":  // "Stop"은 하위호환
+            // 응답 미리보기가 있으면 본문에 표시
+            let body = responsePreview?.isEmpty == false ? responsePreview! : "작업이 완료되었습니다"
             return NotificationContent(
-                title: title,
+                title: displayTitle,
                 subtitle: "응답 완료",
-                body: "응답을 확인하세요",
+                body: body,
+                cli: cli,
+                terminalInfo: terminalInfo
+            )
+        case "error":
+            return NotificationContent(
+                title: displayTitle,
+                subtitle: "오류 발생",
+                body: "세션에서 오류가 발생했습니다",
+                cli: cli,
+                terminalInfo: terminalInfo
+            )
+        case "permission":
+            return NotificationContent(
+                title: displayTitle,
+                subtitle: "권한 필요",
+                body: "승인이 필요합니다",
+                cli: cli,
+                terminalInfo: terminalInfo
+            )
+        default:
+            return NotificationContent(
+                title: displayTitle,
+                subtitle: "알림",
+                body: "상태가 변경되었습니다",
                 cli: cli,
                 terminalInfo: terminalInfo
             )
         }
-
-        // Default
-        return NotificationContent(
-            title: title,
-            subtitle: "알림",
-            body: "상태가 변경되었습니다",
-            cli: cli,
-            terminalInfo: terminalInfo
-        )
     }
 }
 
@@ -1522,25 +1544,59 @@ struct CLIHookInstaller {
         let pluginCode = """
         import { defineHook } from "opencode";
         import { execSync } from "child_process";
+        import { basename } from "path";
+
+        function notify(eventType: string, responsePreview?: string) {
+          try {
+            const cwd = process.cwd();
+            const data = JSON.stringify({
+              hook_event_name: eventType,
+              cwd: cwd,
+              cli: "opencode",
+              project_name: basename(cwd),
+              response_preview: responsePreview || ""
+            });
+            execSync(`echo '${data.replace(/'/g, "'\\''")}' | /Applications/ai-notifier.app/Contents/MacOS/ai-notifier`, {
+              stdio: 'ignore',
+              timeout: 5000
+            });
+          } catch (e) {
+            // Ignore errors
+          }
+        }
+
+        async function getLastResponse(ctx: any): Promise<string> {
+          try {
+            if (!ctx.client?.session?.messages || !ctx.session?.id) return "";
+            const messages = await ctx.client.session.messages({
+              path: { id: ctx.session.id }
+            });
+            if (!messages || messages.length === 0) return "";
+            const lastMsg = messages[messages.length - 1];
+            if (!lastMsg.parts) return "";
+            const text = lastMsg.parts
+              .filter((p: any) => p.type === "text")
+              .map((p: any) => p.text || "")
+              .join("");
+            return text.substring(0, 200);
+          } catch {
+            return "";
+          }
+        }
 
         export default defineHook({
           name: "ai-notifier",
           events: {
             "session.idle": async (ctx) => {
-              try {
-                const data = JSON.stringify({
-                  hook_event_name: "Stop",
-                  cwd: process.cwd(),
-                  cli: "opencode"
-                });
-                execSync(`echo '${data.replace(/'/g, "'\\''")}' | /Applications/ai-notifier.app/Contents/MacOS/ai-notifier`, {
-                  stdio: 'ignore',
-                  timeout: 5000
-                });
-              } catch (e) {
-                // Ignore errors
-              }
+              const preview = await getLastResponse(ctx);
+              notify("complete", preview);
+            },
+            "session.error": async (ctx) => {
+              notify("error");
             }
+          },
+          "permission.ask": async () => {
+            notify("permission");
           }
         });
         """
