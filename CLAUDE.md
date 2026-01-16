@@ -151,7 +151,7 @@ let isHookMode = hasStdinData || hasArgvData
 |-----|---------|
 | **Claude** | `hook_event_name`: Stop, Notification / `notification_type`: idle_prompt, permission_prompt |
 | **Gemini** | 스트리밍 응답마다 hook 호출 → 디바운싱 필수 (`finishReason == "STOP"` 체크) |
-| **Codex** | TOML 설정 파일 사용, `[notice]` 섹션에 `notify` 배열로 설정 |
+| **Codex** | TOML 설정 파일 사용, **`notify`는 루트 레벨**에 설정 (⚠️ `[notice]` 섹션 아님!) |
 | **OpenCode** | **플러그인 방식** - TypeScript 파일을 `~/.opencode/plugin/`에 배치. 3개 이벤트 지원: `session.idle`→complete, `session.error`→error, `permission.ask`→permission. 응답 미리보기 지원. |
 
 **테스트 명령어:**
@@ -191,6 +191,47 @@ cat ~/.opencode/plugin/ai-notifier.ts
 rm ~/.opencode/plugin/ai-notifier.ts
 /Applications/ai-notifier.app/Contents/MacOS/ai-notifier --setup
 ```
+
+---
+
+### ⚠️ Codex config.toml 구조 (매우 중요!)
+
+**`notify`는 반드시 루트 레벨에 위치해야 함. `[notice]` 섹션 안에 넣으면 작동 안 함!**
+
+```toml
+# ✅ 올바른 구조
+model = "gpt-5.2-codex"
+notify = ["/Applications/ai-notifier.app/Contents/MacOS/ai-notifier"]  # 루트 레벨!
+
+[projects."/path/to/project"]
+trust_level = "trusted"
+
+[notice]
+hide_gpt5_1_migration_prompt = true  # 이건 in-product notice 설정
+
+[notice.model_migrations]
+"gpt-5.2" = "gpt-5.2-codex"
+```
+
+```toml
+# ❌ 잘못된 구조 (작동 안 함!)
+[notice]
+notify = ["/Applications/ai-notifier.app/Contents/MacOS/ai-notifier"]  # 여기 넣으면 안 됨!
+```
+
+**혼동하기 쉬운 이유:**
+- `[notice]` 섹션은 "in-product notices" (경고, 마이그레이션 프롬프트 등) 설정용
+- `notify`는 "external notification programs" 설정으로 완전히 다른 용도
+- 이름이 비슷해서 착각하기 쉬움
+
+**설치 코드에서 주의점:**
+- `main.swift`의 `installCodexHook()`: 첫 번째 `[...]` 섹션 앞에 삽입
+- `install.sh`: 동일하게 첫 번째 섹션 앞에 삽입
+- 절대로 `[notice]` 섹션을 찾아서 그 안에 넣지 말 것!
+
+**과거 버그:**
+- `[notice]` 섹션 안에 `notify` 추가 → Codex 알림 작동 안 함
+- `content.contains("[notice]")`가 `[notice.model_migrations]`도 매칭 → 잘못된 위치에 삽입
 
 ---
 
