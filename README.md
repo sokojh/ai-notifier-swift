@@ -190,12 +190,14 @@ Basic 인증:
 | **VSCode** | ⚠️ | ✅ | 폴더 창만 활성화 (내부 터미널 탭 선택 불가) |
 | **Ghostty** | ❌ | ✅ | 앱만 활성화 (세션 API 미지원) |
 | **Warp** | ❌ | ✅ | 앱만 활성화 (AppleScript 미지원) |
+| **Kitty** | ✅* | ✅ | `KITTY_WINDOW_ID`로 창 선택 (원격 제어 필요) |
 
-### 지원 예정 / 미지원
+*Kitty 원격 제어 설정 필요: `~/.config/kitty/kitty.conf`에 `allow_remote_control yes` 추가
+
+### 미지원
 
 | 터미널 | 상태 | 비고 |
 |--------|------|------|
-| **Kitty** | 🔜 예정 | 원격 제어 API 있음 (`kitten @`) |
 | **Alacritty** | ❌ | 원격 제어 API 없음 |
 | **WezTerm** | ❌ | CLI 있지만 탭 포커스 명령 없음 |
 | **Hyper** | ❌ | 제한적 AppleScript만 지원 |

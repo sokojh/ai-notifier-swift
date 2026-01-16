@@ -115,21 +115,34 @@ enum TerminalType: String {
     case terminal = "Apple_Terminal"
     case ghostty = "ghostty"
     case warp = "WarpTerminal"
+    case kitty = "kitty"
     case unknown = "unknown"
 
     static func detect() -> TerminalType {
-        guard let termProgram = ProcessInfo.processInfo.environment["TERM_PROGRAM"] else {
-            return .unknown
+        let env = ProcessInfo.processInfo.environment
+
+        // Check TERM_PROGRAM first
+        if let termProgram = env["TERM_PROGRAM"] {
+            if let type = TerminalType(rawValue: termProgram) {
+                return type
+            }
         }
-        return TerminalType(rawValue: termProgram) ?? .unknown
+
+        // Kitty doesn't set TERM_PROGRAM, check KITTY_WINDOW_ID
+        if env["KITTY_WINDOW_ID"] != nil {
+            return .kitty
+        }
+
+        return .unknown
     }
 }
 
 struct TerminalInfo {
     let type: TerminalType
-    let sessionId: String?  // iTerm2 ITERM_SESSION_ID
-    let cwd: String?        // Working directory for VS Code
-    let tty: String?        // TTY device for Terminal.app (e.g., /dev/ttys001)
+    let sessionId: String?      // iTerm2 ITERM_SESSION_ID
+    let cwd: String?            // Working directory for VS Code
+    let tty: String?            // TTY device for Terminal.app (e.g., /dev/ttys001)
+    let kittyWindowId: String?  // Kitty KITTY_WINDOW_ID
 
     static func capture(cwd: String? = nil) -> TerminalInfo {
         let env = ProcessInfo.processInfo.environment
@@ -137,7 +150,8 @@ struct TerminalInfo {
             type: TerminalType.detect(),
             sessionId: env["ITERM_SESSION_ID"],
             cwd: cwd ?? env["PWD"],
-            tty: env["TTY"] ?? getCurrentTTY()
+            tty: env["TTY"] ?? getCurrentTTY(),
+            kittyWindowId: env["KITTY_WINDOW_ID"]
         )
     }
 
@@ -165,6 +179,7 @@ struct TerminalInfo {
         if let sessionId = sessionId { dict["sessionId"] = sessionId }
         if let cwd = cwd { dict["cwd"] = cwd }
         if let tty = tty { dict["tty"] = tty }
+        if let kittyWindowId = kittyWindowId { dict["kittyWindowId"] = kittyWindowId }
         return dict
     }
 
@@ -173,7 +188,8 @@ struct TerminalInfo {
             type: TerminalType(rawValue: dictionary["terminalType"] ?? "") ?? .unknown,
             sessionId: dictionary["sessionId"],
             cwd: dictionary["cwd"],
-            tty: dictionary["tty"]
+            tty: dictionary["tty"],
+            kittyWindowId: dictionary["kittyWindowId"]
         )
     }
 }
@@ -203,6 +219,8 @@ struct TerminalActivator {
             activateGhostty()
         case .warp:
             activateWarp(cwd: info.cwd)
+        case .kitty:
+            activateKitty(windowId: info.kittyWindowId)
         case .unknown:
             // Try to activate based on available info
             if info.sessionId != nil {
@@ -378,6 +396,40 @@ struct TerminalActivator {
         end tell
         tell application "System Events"
             set frontmost of process "Warp" to true
+        end tell
+        """)
+    }
+
+    private static func activateKitty(windowId: String?) {
+        debugLog("Activating Kitty with windowId: \(windowId ?? "nil")")
+
+        // Try to use kitten @ focus-window if remote control is available
+        if let windowId = windowId {
+            let task = Process()
+            task.launchPath = "/usr/bin/env"
+            task.arguments = ["kitten", "@", "focus-window", "--match", "id:\(windowId)"]
+            task.standardOutput = FileHandle.nullDevice
+            task.standardError = FileHandle.nullDevice
+            do {
+                try task.run()
+                task.waitUntilExit()
+                if task.terminationStatus == 0 {
+                    debugLog("Kitty window focused via remote control")
+                    return
+                }
+                debugLog("Kitty remote control failed (status: \(task.terminationStatus)), falling back to AppleScript")
+            } catch {
+                debugLog("Kitty remote control error: \(error), falling back to AppleScript")
+            }
+        }
+
+        // Fallback: just activate Kitty app
+        runAppleScript("""
+        tell application "kitty"
+            activate
+        end tell
+        tell application "System Events"
+            set frontmost of process "kitty" to true
         end tell
         """)
     }
@@ -1639,7 +1691,8 @@ func handleURLScheme(_ urlString: String) {
         type: TerminalType(rawValue: params["type"] ?? "") ?? .unknown,
         sessionId: params["sessionId"],
         cwd: params["cwd"],
-        tty: params["tty"]
+        tty: params["tty"],
+        kittyWindowId: params["kittyWindowId"]
     )
 
     debugLog("Activating terminal: \(terminalInfo.type)")
