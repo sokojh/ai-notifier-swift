@@ -1,6 +1,6 @@
 # AI Notifier
 
-AI 코딩 어시스턴트(Claude Code, Gemini CLI, Codex CLI)를 위한 네이티브 macOS 알림 앱
+AI 코딩 어시스턴트(Claude Code, Gemini CLI, Codex CLI, OpenCode)를 위한 네이티브 macOS 알림 앱
 
 Swift로 작성되어 `UNUserNotificationCenter` API를 사용하며, macOS Sequoia와 Tahoe를 포함한 모든 최신 macOS 버전과 완벽 호환됩니다.
 
@@ -40,7 +40,7 @@ git clone https://github.com/sokojh/ai-notifier-swift.git /tmp/ai-notifier-swift
 설치 스크립트가 자동으로:
 1. Swift 앱 빌드 (Universal Binary)
 2. `/Applications/ai-notifier.app` 설치
-3. Claude Code, Gemini CLI, Codex CLI 훅 자동 설정
+3. Claude Code, Gemini CLI, Codex CLI, OpenCode 훅 자동 설정
 4. 알림 권한 요청
 
 ### 수동 설치
@@ -194,15 +194,53 @@ EOF
 <details>
 <summary><strong>Codex CLI</strong></summary>
 
-`~/.codex/config.json`:
-```json
-{
-  "hooks": {
-    "agent-turn-complete": "/Applications/ai-notifier.app/Contents/MacOS/ai-notifier",
-    "approval-requested": "/Applications/ai-notifier.app/Contents/MacOS/ai-notifier"
-  }
-}
+`~/.codex/config.toml`:
+```toml
+[notice]
+notify = ["/Applications/ai-notifier.app/Contents/MacOS/ai-notifier"]
 ```
+</details>
+
+<details>
+<summary><strong>OpenCode</strong></summary>
+
+OpenCode는 플러그인 방식으로 동작합니다. `--setup` 실행 시 자동 설치됩니다.
+
+`~/.opencode/plugin/ai-notifier.ts`:
+```typescript
+import { defineHook } from "opencode";
+import { execSync } from "child_process";
+import { basename } from "path";
+
+function notify(eventType: string, responsePreview?: string) {
+  const cwd = process.cwd();
+  const data = JSON.stringify({
+    hook_event_name: eventType,
+    cwd: cwd,
+    cli: "opencode",
+    project_name: basename(cwd),
+    response_preview: responsePreview || ""
+  });
+  execSync(`echo '${data.replace(/'/g, "'\\''")}' | /Applications/ai-notifier.app/Contents/MacOS/ai-notifier`, {
+    stdio: 'ignore',
+    timeout: 5000
+  });
+}
+
+export default defineHook({
+  name: "ai-notifier",
+  events: {
+    "session.idle": async (ctx) => { notify("complete"); },
+    "session.error": async (ctx) => { notify("error"); }
+  },
+  "permission.ask": async () => { notify("permission"); }
+});
+```
+
+**지원 이벤트:**
+- `session.idle` → 응답 완료 알림
+- `session.error` → 오류 발생 알림
+- `permission.ask` → 권한 요청 알림
 </details>
 
 ---

@@ -152,7 +152,7 @@ let isHookMode = hasStdinData || hasArgvData
 | **Claude** | `hook_event_name`: Stop, Notification / `notification_type`: idle_prompt, permission_prompt |
 | **Gemini** | 스트리밍 응답마다 hook 호출 → 디바운싱 필수 (`finishReason == "STOP"` 체크) |
 | **Codex** | TOML 설정 파일 사용, `[notice]` 섹션에 `notify` 배열로 설정 |
-| **OpenCode** | **플러그인 방식** - TypeScript 파일을 `~/.opencode/plugin/`에 배치. `session.idle` 이벤트 사용. 기존 CLI 설정과 완전 분리 |
+| **OpenCode** | **플러그인 방식** - TypeScript 파일을 `~/.opencode/plugin/`에 배치. 3개 이벤트 지원: `session.idle`→complete, `session.error`→error, `permission.ask`→permission. 응답 미리보기 지원. |
 
 **테스트 명령어:**
 ```bash
@@ -166,7 +166,30 @@ echo '{"hook_event_name":"AfterModel","finishReason":"STOP","cwd":"/tmp"}' | /Ap
 /Applications/ai-notifier.app/Contents/MacOS/ai-notifier '{"event":"agent-turn-complete","cwd":"/tmp"}'
 
 # OpenCode (stdin - plugin이 전송하는 형식)
-echo '{"hook_event_name":"Stop","cwd":"/tmp","cli":"opencode"}' | /Applications/ai-notifier.app/Contents/MacOS/ai-notifier
+echo '{"hook_event_name":"complete","cwd":"/tmp","cli":"opencode","project_name":"myproject","response_preview":"작업 완료 메시지"}' | /Applications/ai-notifier.app/Contents/MacOS/ai-notifier
+```
+
+---
+
+### ⚠️ OpenCode 응답 미리보기 (실험적)
+
+OpenCode 플러그인은 `client.session.messages()` API를 사용해 마지막 응답을 가져옵니다.
+
+**주의사항:**
+- OpenCode SDK의 실제 API 구조가 구현과 다를 수 있음
+- `ctx.client?.session?.messages` 또는 `ctx.session?.id` 접근 불가 시 빈 문자열 반환
+- 실제 OpenCode에서 테스트 후 API 호출 부분 조정 필요할 수 있음
+
+**플러그인 위치:** `~/.opencode/plugin/ai-notifier.ts`
+
+**디버깅:**
+```bash
+# 플러그인 로그 확인
+cat ~/.opencode/plugin/ai-notifier.ts
+
+# 플러그인 재설치
+rm ~/.opencode/plugin/ai-notifier.ts
+/Applications/ai-notifier.app/Contents/MacOS/ai-notifier --setup
 ```
 
 ---
