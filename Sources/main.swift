@@ -1703,8 +1703,19 @@ func main() {
         return
     }
 
-    // Check if running as hook (stdin has data) - don't auto-setup in hook mode
-    let isHookMode = isatty(FileHandle.standardInput.fileDescriptor) == 0
+    // Check if running as hook:
+    // 1. stdin has data (Claude, Gemini pipe JSON via stdin)
+    // 2. argv has JSON data (Codex passes JSON as command line argument)
+    let hasStdinData = isatty(FileHandle.standardInput.fileDescriptor) == 0
+    let hasArgvData: Bool = {
+        guard CommandLine.arguments.count > 1 else { return false }
+        let arg = CommandLine.arguments[1]
+        // Skip flags and URL schemes
+        if arg.hasPrefix("-") || arg.hasPrefix("ai-notifier://") { return false }
+        // Check if it looks like JSON
+        return arg.hasPrefix("{")
+    }()
+    let isHookMode = hasStdinData || hasArgvData
 
     // First run auto-setup only when NOT in hook mode (user double-clicked app)
     if !isHookMode {

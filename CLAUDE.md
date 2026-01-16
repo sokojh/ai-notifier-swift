@@ -123,6 +123,46 @@ rm -rf /Applications/ai-notifier.app
 **과거 버그 사례:**
 - DMG 설치 후 앱 더블클릭 시 hook 자동 설정 안 됨 (첫 실행 감지 누락)
 - install.sh와 앱 내 CLIHookInstaller 로직 불일치
+- Codex hook 실행 시 매번 setup 실행됨 (argv 기반 hook 감지 누락)
+
+---
+
+### ⚠️ CLI별 Hook 호출 방식 (중요!)
+
+**각 CLI마다 hook 호출 방식이 다름. 새 기능 추가 시 반드시 3개 CLI 모두 테스트할 것!**
+
+| CLI | 데이터 전달 방식 | Hook 모드 감지 | 설정 파일 |
+|-----|-----------------|---------------|----------|
+| **Claude** | stdin (pipe) | `isatty(stdin) == 0` | `~/.claude/settings.json` |
+| **Gemini** | stdin (pipe) | `isatty(stdin) == 0` | `~/.gemini/settings.json` |
+| **Codex** | argv[1] (JSON) | `argv[1].hasPrefix("{")` | `~/.codex/config.toml` |
+
+**Hook 모드 감지 코드:**
+```swift
+let hasStdinData = isatty(stdin) == 0           // Claude, Gemini
+let hasArgvData = argv[1].hasPrefix("{")        // Codex
+let isHookMode = hasStdinData || hasArgvData
+```
+
+**CLI별 특이사항:**
+
+| CLI | 특이사항 |
+|-----|---------|
+| **Claude** | `hook_event_name`: Stop, Notification / `notification_type`: idle_prompt, permission_prompt |
+| **Gemini** | 스트리밍 응답마다 hook 호출 → 디바운싱 필수 (`finishReason == "STOP"` 체크) |
+| **Codex** | TOML 설정 파일 사용, `[notice]` 섹션에 `notify` 배열로 설정 |
+
+**테스트 명령어:**
+```bash
+# Claude (stdin)
+echo '{"hook_event_name":"Stop","cwd":"/tmp"}' | /Applications/ai-notifier.app/Contents/MacOS/ai-notifier
+
+# Gemini (stdin)
+echo '{"hook_event_name":"AfterModel","finishReason":"STOP","cwd":"/tmp"}' | /Applications/ai-notifier.app/Contents/MacOS/ai-notifier
+
+# Codex (argv)
+/Applications/ai-notifier.app/Contents/MacOS/ai-notifier '{"event":"agent-turn-complete","cwd":"/tmp"}'
+```
 
 ---
 
