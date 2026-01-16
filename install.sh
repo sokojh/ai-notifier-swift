@@ -249,22 +249,36 @@ CODEX_CONFIG="$HOME/.codex/config.toml"
 if command -v codex &> /dev/null || [ -f "$CODEX_CONFIG" ]; then
     mkdir -p "$HOME/.codex"
 
+    # 기존 ai-notifier 관련 줄 제거
     if [ -f "$CODEX_CONFIG" ]; then
         grep -v "ai-notify\|ai-notifier" "$CODEX_CONFIG" > "${CODEX_CONFIG}.tmp" 2>/dev/null || touch "${CODEX_CONFIG}.tmp"
         mv "${CODEX_CONFIG}.tmp" "$CODEX_CONFIG"
     fi
 
-    if ! grep -q "^\[notice\]" "$CODEX_CONFIG" 2>/dev/null; then
+    NOTIFY_LINE="notify = [\"$NOTIFIER_PATH\"]"
+
+    if ! grep -q "^\[notice\]$" "$CODEX_CONFIG" 2>/dev/null; then
+        # [notice] 섹션이 없으면 파일 앞에 추가
         TEMP_FILE=$(mktemp)
         cat > "$TEMP_FILE" << EOF
 # AI Notifier
 [notice]
-notify = ["$NOTIFIER_PATH"]
+$NOTIFY_LINE
 
 EOF
         if [ -f "$CODEX_CONFIG" ]; then
             cat "$CODEX_CONFIG" >> "$TEMP_FILE"
         fi
+        mv "$TEMP_FILE" "$CODEX_CONFIG"
+    else
+        # [notice] 섹션이 있으면 그 다음 줄에 notify 추가
+        TEMP_FILE=$(mktemp)
+        while IFS= read -r line || [ -n "$line" ]; do
+            echo "$line" >> "$TEMP_FILE"
+            if [ "$line" = "[notice]" ]; then
+                echo "$NOTIFY_LINE" >> "$TEMP_FILE"
+            fi
+        done < "$CODEX_CONFIG"
         mv "$TEMP_FILE" "$CODEX_CONFIG"
     fi
     echo "   ✓ Codex CLI"
