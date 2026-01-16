@@ -10,6 +10,74 @@ struct Config {
     static let previewMaxLines = 2
     static let debounceMs = 2000  // 2 seconds
     static let debounceDir = "/tmp"
+    static let configDir = "\(NSHomeDirectory())/.config/ai-notifier"
+    static let configFile = "\(configDir)/config.json"
+}
+
+// MARK: - Ntfy Configuration (Optional)
+
+struct NtfyAuth: Codable {
+    let type: String?      // "bearer" or "basic"
+    let token: String?     // Bearer token
+    let username: String?  // Basic auth username
+    let password: String?  // Basic auth password
+}
+
+struct NtfySettings: Codable {
+    let enabled: Bool
+    let server: String
+    let topic: String
+    let priority: String?
+    let auth: NtfyAuth?
+
+    static let `default` = NtfySettings(
+        enabled: false,
+        server: "https://ntfy.sh",
+        topic: "",
+        priority: "default",
+        auth: nil
+    )
+}
+
+struct AppConfig: Codable {
+    let ntfy: NtfySettings?
+
+    static func load() -> AppConfig {
+        let configPath = Config.configFile
+
+        guard FileManager.default.fileExists(atPath: configPath),
+              let data = try? Data(contentsOf: URL(fileURLWithPath: configPath)),
+              let config = try? JSONDecoder().decode(AppConfig.self, from: data) else {
+            return AppConfig(ntfy: nil)
+        }
+
+        return config
+    }
+}
+
+class NtfyConfig {
+    static let shared = NtfyConfig()
+
+    private(set) var settings: NtfySettings
+
+    var enabled: Bool { settings.enabled && !settings.topic.isEmpty }
+    var server: String { settings.server }
+    var topic: String { settings.topic }
+    var priority: String { settings.priority ?? "default" }
+
+    private init() {
+        let appConfig = AppConfig.load()
+        self.settings = appConfig.ntfy ?? NtfySettings.default
+
+        if enabled {
+            debugLog("ntfy enabled: \(server)/\(topic)")
+        }
+    }
+
+    func reload() {
+        let appConfig = AppConfig.load()
+        self.settings = appConfig.ntfy ?? NtfySettings.default
+    }
 }
 
 // MARK: - CLI Types
@@ -777,6 +845,100 @@ struct HookDataParser {
     }
 }
 
+// MARK: - Ntfy Client (Optional Push Notification)
+
+struct NtfyClient {
+    /// Send notification to ntfy server
+    static func send(content: NotificationContent, completion: @escaping (Bool) -> Void) {
+        let config = NtfyConfig.shared
+
+        guard config.enabled else {
+            completion(true)  // Skip but treat as success
+            return
+        }
+
+        let urlString = "\(config.server)/\(config.topic)"
+        guard let url = URL(string: urlString) else {
+            debugLog("ntfy: Invalid URL - \(urlString)")
+            completion(false)
+            return
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("text/plain; charset=utf-8", forHTTPHeaderField: "Content-Type")
+
+        // Title and message
+        request.setValue(content.title, forHTTPHeaderField: "Title")
+        request.setValue(content.subtitle, forHTTPHeaderField: "Tags")
+        request.setValue(config.priority, forHTTPHeaderField: "Priority")
+
+        // Authentication (optional)
+        if let auth = config.settings.auth {
+            if auth.type == "bearer", let token = auth.token {
+                request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            } else if auth.type == "basic", let username = auth.username, let password = auth.password {
+                let credentials = "\(username):\(password)"
+                if let data = credentials.data(using: .utf8) {
+                    let base64 = data.base64EncodedString()
+                    request.setValue("Basic \(base64)", forHTTPHeaderField: "Authorization")
+                }
+            }
+        }
+
+        // Body
+        request.httpBody = content.body.data(using: .utf8)
+
+        // Click action - open terminal (macOS only, uses URL scheme)
+        let clickURL = buildClickURL(for: content.terminalInfo)
+        if let clickURL = clickURL {
+            request.setValue(clickURL, forHTTPHeaderField: "Click")
+        }
+
+        debugLog("ntfy: Sending to \(urlString)")
+
+        let task = URLSession.shared.dataTask(with: request) { data, response, error in
+            if let error = error {
+                debugLog("ntfy: Error - \(error.localizedDescription)")
+                completion(false)
+                return
+            }
+
+            if let httpResponse = response as? HTTPURLResponse {
+                let success = (200...299).contains(httpResponse.statusCode)
+                debugLog("ntfy: Response \(httpResponse.statusCode)")
+                completion(success)
+            } else {
+                completion(false)
+            }
+        }
+
+        task.resume()
+    }
+
+    private static func buildClickURL(for terminalInfo: TerminalInfo) -> String? {
+        var components = URLComponents()
+        components.scheme = "ai-notifier"
+        components.host = "activate"
+
+        var queryItems: [URLQueryItem] = []
+        queryItems.append(URLQueryItem(name: "type", value: terminalInfo.type.rawValue))
+
+        if let sessionId = terminalInfo.sessionId {
+            queryItems.append(URLQueryItem(name: "sessionId", value: sessionId))
+        }
+        if let cwd = terminalInfo.cwd {
+            queryItems.append(URLQueryItem(name: "cwd", value: cwd))
+        }
+        if let tty = terminalInfo.tty {
+            queryItems.append(URLQueryItem(name: "tty", value: tty))
+        }
+
+        components.queryItems = queryItems
+        return components.string
+    }
+}
+
 // MARK: - Notification Manager
 
 class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
@@ -793,22 +955,51 @@ class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         content: NotificationContent,
         completion: @escaping (Bool) -> Void
     ) {
-        // First, request authorization
+        let ntfyEnabled = NtfyConfig.shared.enabled
+        let totalTargets = ntfyEnabled ? 2 : 1
+        var completedCount = 0
+        var successCount = 0
+        let lock = NSLock()
+
+        let checkCompletion = { (success: Bool) in
+            lock.lock()
+            completedCount += 1
+            if success { successCount += 1 }
+            let done = completedCount >= totalTargets
+            let result = successCount > 0
+            lock.unlock()
+
+            if done {
+                completion(result)
+            }
+        }
+
+        // 1. Send to ntfy (if enabled) - parallel
+        if ntfyEnabled {
+            NtfyClient.send(content: content) { success in
+                debugLog("ntfy delivery: \(success ? "success" : "failed")")
+                checkCompletion(success)
+            }
+        }
+
+        // 2. Send native macOS notification - parallel
         center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
             if let error = error {
                 fputs("Authorization error: \(error.localizedDescription)\n", stderr)
-                completion(false)
+                checkCompletion(false)
                 return
             }
 
             guard granted else {
                 fputs("Notification permission denied. Please enable in System Settings > Notifications > AI Notifier\n", stderr)
-                completion(false)
+                checkCompletion(false)
                 return
             }
 
             // Permission granted, now send notification
-            self.deliverNotification(content: content, completion: completion)
+            self.deliverNotification(content: content) { success in
+                checkCompletion(success)
+            }
         }
     }
 
