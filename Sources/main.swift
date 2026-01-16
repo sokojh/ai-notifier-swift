@@ -1697,10 +1697,24 @@ func handleURLScheme(_ urlString: String) {
 // MARK: - Main Entry Point
 
 func main() {
-    // Check for setup mode
+    // Check for explicit setup mode first
     if CommandLine.arguments.contains("--setup") || CommandLine.arguments.contains("-s") {
         runSetupMode()
         return
+    }
+
+    // Check if running as hook (stdin has data) - don't auto-setup in hook mode
+    let isHookMode = isatty(FileHandle.standardInput.fileDescriptor) == 0
+
+    // First run auto-setup only when NOT in hook mode (user double-clicked app)
+    if !isHookMode {
+        let configuredFlag = NSString(string: "~/.ai-notifier-configured").expandingTildeInPath
+        let isFirstRun = !FileManager.default.fileExists(atPath: configuredFlag)
+        if isFirstRun {
+            runSetupMode()
+            try? "".write(toFile: configuredFlag, atomically: true, encoding: .utf8)
+            return
+        }
     }
 
     // Check for URL scheme activation (ai-notifier://activate?...)
