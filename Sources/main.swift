@@ -1432,10 +1432,10 @@ struct CLIHookInstaller {
         }
     }
 
-    // MARK: - Codex CLI Hook Installation
+    // MARK: - Codex CLI Hook Installation (TOML format)
 
     static func installCodexHook() -> InstallResult {
-        let settingsPath = NSString(string: "~/.codex/config.json").expandingTildeInPath
+        let configPath = NSString(string: "~/.codex/config.toml").expandingTildeInPath
         let codexDir = NSString(string: "~/.codex").expandingTildeInPath
 
         // Check if Codex CLI is installed
@@ -1450,30 +1450,31 @@ struct CLIHookInstaller {
         // Create directory if needed
         try? FileManager.default.createDirectory(atPath: codexDir, withIntermediateDirectories: true)
 
-        // Read existing settings or create new
-        var settings: [String: Any] = [:]
-        if let data = FileManager.default.contents(atPath: settingsPath),
-           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-            settings = json
+        // Read existing config.toml or create empty
+        var content = (try? String(contentsOfFile: configPath, encoding: .utf8)) ?? ""
+
+        // Check if ai-notifier already configured
+        if content.contains("ai-notifier") {
+            return .alreadyInstalled
         }
 
-        // Check if hooks already configured
-        if let hooks = settings["hooks"] as? [String: Any] {
-            if let onComplete = hooks["agent-turn-complete"] as? String, onComplete.contains("ai-notifier") {
-                return .alreadyInstalled
-            }
+        // Add notify to [notice] section
+        let notifyLine = "notify = [\"\(notifierPath)\"]"
+
+        if content.contains("[notice]") {
+            // Add notify after [notice] section header
+            content = content.replacingOccurrences(
+                of: "[notice]",
+                with: "[notice]\n\(notifyLine)"
+            )
+        } else {
+            // No [notice] section, prepend to file
+            content = "# AI Notifier\n[notice]\n\(notifyLine)\n\n" + content
         }
 
-        // Add hooks
-        var hooks = settings["hooks"] as? [String: Any] ?? [:]
-        hooks["agent-turn-complete"] = notifierPath
-        hooks["approval-requested"] = notifierPath
-        settings["hooks"] = hooks
-
-        // Write settings
+        // Write config
         do {
-            let data = try JSONSerialization.data(withJSONObject: settings, options: [.prettyPrinted, .sortedKeys])
-            try data.write(to: URL(fileURLWithPath: settingsPath))
+            try content.write(toFile: configPath, atomically: true, encoding: .utf8)
             return .installed
         } catch {
             return .error(error.localizedDescription)
