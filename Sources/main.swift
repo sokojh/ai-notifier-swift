@@ -246,6 +246,7 @@ struct TerminalActivator {
                         repeat with t in tabs of w
                             repeat with s in sessions of t
                                 if unique id of s is "\(uuid)" then
+                                    select s
                                     select t
                                     set index of w to 1
                                 end if
