@@ -1455,6 +1455,7 @@ struct CLIHookInstaller {
     }
 
     // MARK: - Codex CLI Hook Installation (TOML format)
+    // Note: notify must be at ROOT level, not inside [notice] section!
 
     static func installCodexHook() -> InstallResult {
         let configPath = NSString(string: "~/.codex/config.toml").expandingTildeInPath
@@ -1475,34 +1476,35 @@ struct CLIHookInstaller {
         // Read existing config.toml or create empty
         var content = (try? String(contentsOfFile: configPath, encoding: .utf8)) ?? ""
 
-        // Check if ai-notifier already configured
+        // Check if ai-notifier already configured (at root level)
         if content.contains("ai-notifier") {
             return .alreadyInstalled
         }
 
-        // Add notify to [notice] section
+        // Add notify at ROOT level (before first section or at end if no sections)
         let notifyLine = "notify = [\"\(notifierPath)\"]"
-
-        // Find exact [notice] section (not [notice.something])
         var lines = content.components(separatedBy: "\n")
-        var noticeIndex: Int? = nil
 
+        // Find first section header [...]
+        var firstSectionIndex: Int? = nil
         for (index, line) in lines.enumerated() {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
-            if trimmed == "[notice]" {
-                noticeIndex = index
+            if trimmed.hasPrefix("[") && trimmed.hasSuffix("]") {
+                firstSectionIndex = index
                 break
             }
         }
 
-        if let idx = noticeIndex {
-            // Insert notify line after [notice]
-            lines.insert(notifyLine, at: idx + 1)
-            content = lines.joined(separator: "\n")
+        if let idx = firstSectionIndex {
+            // Insert notify before first section
+            lines.insert(notifyLine, at: idx)
+            lines.insert("", at: idx + 1)  // blank line after
         } else {
-            // No [notice] section, prepend to file
-            content = "# AI Notifier\n[notice]\n\(notifyLine)\n\n" + content
+            // No sections, append to end
+            lines.append(notifyLine)
         }
+
+        content = lines.joined(separator: "\n")
 
         // Write config
         do {
