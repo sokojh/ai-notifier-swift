@@ -188,12 +188,14 @@ Basic 인증:
 |--------|:-----------:|:--------:|------|
 | **iTerm2** | ✅ | ✅ | `ITERM_SESSION_ID`로 정확한 세션 선택 |
 | **Terminal.app** | ✅ | ✅ | TTY로 정확한 탭 선택 |
-| **VSCode** | ⚠️ | ✅ | 폴더 창만 활성화 (내부 터미널 탭 선택 불가) |
+| **VSCode** | ✅* | ✅ | AXRaise로 폴더 창 선택 (내부 터미널 탭 선택 불가) |
 | **Ghostty** | ❌ | ✅ | 앱만 활성화 (세션 API 미지원) |
 | **Warp** | ❌ | ✅ | 앱만 활성화 (AppleScript 미지원) |
 | **Kitty** | ✅* | ✅ | `KITTY_WINDOW_ID`로 창 선택 (원격 제어 필요) |
 
-*Kitty 원격 제어 설정 필요: `~/.config/kitty/kitty.conf`에 `allow_remote_control yes` 추가
+*설정 필요:
+- **VSCode**: 접근성 권한 필요 (시스템 설정 > 개인정보 보호 및 보안 > 접근성)
+- **Kitty**: `~/.config/kitty/kitty.conf`에 `allow_remote_control yes` 추가
 
 ### 미지원
 
