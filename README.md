@@ -80,14 +80,12 @@ codesign --force --deep --sign - /Applications/ai-notifier.app
 
 | 터미널 | 방식 | 비고 |
 |--------|------|------|
-| **VSCode** | AXRaise | 폴더명으로 창 매칭 → **접근성 권한 필요** |
+| **VSCode** | `code` CLI | 폴더 창 활성화 (내부 터미널 탭 선택 불가) |
 | **Kitty** | `kitten @` | 창 ID로 포커스 → **원격 제어 설정 필요** |
 | **Ghostty** | AppleScript | 앱만 활성화 (세션 API 미지원) |
 | **Warp** | AppleScript | 앱만 활성화 (탭 선택 불가) |
 
 ### 추가 설정이 필요한 터미널
-
-**VSCode**: 시스템 설정 → 개인정보 보호 및 보안 → 접근성에서 터미널 앱 허용
 
 **Kitty**: `~/.config/kitty/kitty.conf`에 추가:
 ```
