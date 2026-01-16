@@ -179,6 +179,29 @@ Basic 인증:
 2. 설정한 토픽 구독 (예: `your-unique-topic-name`)
 3. AI 알림이 모바일에서도 수신됨
 
+## Supported Terminals (Click-to-Focus)
+
+알림 클릭 시 해당 터미널로 자동 이동하는 기능을 지원합니다.
+
+| 터미널 | 탭/세션 선택 | 앱 활성화 | 비고 |
+|--------|:-----------:|:--------:|------|
+| **iTerm2** | ✅ | ✅ | `ITERM_SESSION_ID`로 정확한 세션 선택 |
+| **Terminal.app** | ✅ | ✅ | TTY로 정확한 탭 선택 |
+| **VSCode** | ⚠️ | ✅ | 폴더 창만 활성화 (내부 터미널 탭 선택 불가) |
+| **Ghostty** | ❌ | ✅ | 앱만 활성화 (세션 API 미지원) |
+| **Warp** | ❌ | ✅ | 앱만 활성화 (AppleScript 미지원) |
+
+### 지원 예정 / 미지원
+
+| 터미널 | 상태 | 비고 |
+|--------|------|------|
+| **Kitty** | 🔜 예정 | 원격 제어 API 있음 (`kitten @`) |
+| **Alacritty** | ❌ | 원격 제어 API 없음 |
+| **WezTerm** | ❌ | CLI 있지만 탭 포커스 명령 없음 |
+| **Hyper** | ❌ | 제한적 AppleScript만 지원 |
+
+> **참고**: 탭/세션 선택이 ❌인 터미널은 앱이 활성화되지만, 수동으로 올바른 탭을 선택해야 합니다.
+
 ## Technical Details
 
 - **Language**: Swift 5+

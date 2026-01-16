@@ -113,6 +113,8 @@ enum TerminalType: String {
     case iterm2 = "iTerm.app"
     case vscode = "vscode"
     case terminal = "Apple_Terminal"
+    case ghostty = "ghostty"
+    case warp = "WarpTerminal"
     case unknown = "unknown"
 
     static func detect() -> TerminalType {
@@ -197,15 +199,19 @@ struct TerminalActivator {
             activateVSCode(cwd: info.cwd)
         case .terminal:
             activateTerminalApp(tty: info.tty)
+        case .ghostty:
+            activateGhostty()
+        case .warp:
+            activateWarp(cwd: info.cwd)
         case .unknown:
             // Try to activate based on available info
             if info.sessionId != nil {
                 activateITerm2(sessionId: info.sessionId)
             } else if info.tty != nil {
                 activateTerminalApp(tty: info.tty)
-            } else if let cwd = info.cwd {
-                activateVSCode(cwd: cwd)
             }
+            // VSCode fallback 제거 - unknown 터미널은 무시
+            debugLog("Unknown terminal type, skipping activation")
         }
     }
 
@@ -346,6 +352,34 @@ struct TerminalActivator {
         """
 
         runAppleScript(script)
+    }
+
+    private static func activateGhostty() {
+        // Ghostty doesn't have session selection API yet, just activate the app
+        debugLog("Activating Ghostty...")
+        runAppleScript("""
+        tell application "Ghostty"
+            activate
+        end tell
+        tell application "System Events"
+            set frontmost of process "Ghostty" to true
+        end tell
+        """)
+    }
+
+    private static func activateWarp(cwd: String?) {
+        debugLog("Activating Warp with cwd: \(cwd ?? "nil")")
+
+        // Warp supports URL scheme but only for new tabs, not for selecting existing ones
+        // Just activate the app - user will need to manually select the tab
+        runAppleScript("""
+        tell application "Warp"
+            activate
+        end tell
+        tell application "System Events"
+            set frontmost of process "Warp" to true
+        end tell
+        """)
     }
 
     private static func runAppleScript(_ script: String) {
