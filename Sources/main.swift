@@ -1461,12 +1461,22 @@ struct CLIHookInstaller {
         // Add notify to [notice] section
         let notifyLine = "notify = [\"\(notifierPath)\"]"
 
-        if content.contains("[notice]") {
-            // Add notify after [notice] section header
-            content = content.replacingOccurrences(
-                of: "[notice]",
-                with: "[notice]\n\(notifyLine)"
-            )
+        // Find exact [notice] section (not [notice.something])
+        var lines = content.components(separatedBy: "\n")
+        var noticeIndex: Int? = nil
+
+        for (index, line) in lines.enumerated() {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed == "[notice]" {
+                noticeIndex = index
+                break
+            }
+        }
+
+        if let idx = noticeIndex {
+            // Insert notify line after [notice]
+            lines.insert(notifyLine, at: idx + 1)
+            content = lines.joined(separator: "\n")
         } else {
             // No [notice] section, prepend to file
             content = "# AI Notifier\n[notice]\n\(notifyLine)\n\n" + content
