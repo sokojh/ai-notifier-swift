@@ -277,66 +277,114 @@ struct TerminalActivator {
     private static func activateVSCode(cwd: String?) {
         debugLog("activateVSCode called with cwd: \(cwd ?? "nil")")
 
+        var axRaiseSuccess = false
+
+        // Try AXRaise first (fast path) - uses System Events to directly raise the window
         if let cwd = cwd {
-            // Use VS Code CLI to activate the window with this folder
-            // Note: "code <folder>" without -r flag will find and activate
-            // the existing window that has this folder open
+            let folderName = (cwd as NSString).lastPathComponent
+            debugLog("Trying AXRaise for folder: \(folderName)")
 
-            // Find VS Code CLI path (may not be in PATH)
-            let codePaths = [
-                "/usr/local/bin/code",
-                "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code",
-                "/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/bin/code"
-            ]
+            // Escape special characters for AppleScript string
+            let escapedFolderName = folderName.replacingOccurrences(of: "\\", with: "\\\\")
+                                              .replacingOccurrences(of: "\"", with: "\\\"")
 
-            var codePath: String? = nil
-            for path in codePaths {
-                if FileManager.default.fileExists(atPath: path) {
-                    codePath = path
-                    break
+            let axRaiseScript = """
+            tell application "System Events"
+                tell process "Code"
+                    set targetWindow to first window whose name contains "\(escapedFolderName)"
+                    perform action "AXRaise" of targetWindow
+                end tell
+            end tell
+            tell application "Visual Studio Code" to activate
+            """
+
+            let task = Process()
+            task.launchPath = "/usr/bin/osascript"
+            task.arguments = ["-e", axRaiseScript]
+
+            let errorPipe = Pipe()
+            task.standardOutput = FileHandle.nullDevice
+            task.standardError = errorPipe
+
+            do {
+                try task.run()
+                task.waitUntilExit()
+
+                let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
+                if let errorStr = String(data: errorData, encoding: .utf8), !errorStr.isEmpty {
+                    debugLog("AXRaise error: \(errorStr)")
                 }
-            }
 
-            if let codePath = codePath {
-                debugLog("Running: \(codePath) \(cwd)")
-                let task = Process()
-                task.launchPath = codePath
-                task.arguments = [cwd]
-                task.standardOutput = FileHandle.nullDevice
-                task.standardError = FileHandle.nullDevice
-                do {
-                    try task.run()
-                    task.waitUntilExit()
-                    debugLog("code command exit status: \(task.terminationStatus)")
-                } catch {
-                    debugLog("code command failed: \(error)")
+                if task.terminationStatus == 0 {
+                    debugLog("AXRaise success!")
+                    axRaiseSuccess = true
+                } else {
+                    debugLog("AXRaise failed with status: \(task.terminationStatus)")
                 }
-            } else {
-                debugLog("VS Code CLI not found in any known location")
+            } catch {
+                debugLog("AXRaise execution failed: \(error)")
             }
-        } else {
-            debugLog("No cwd provided, skipping code command")
         }
 
-        // Bring VS Code to front
-        debugLog("Running AppleScript to activate VS Code")
-        runAppleScript("""
-        tell application "Visual Studio Code"
-            activate
-        end tell
-        tell application "System Events"
-            set frontmost of process "Code" to true
-        end tell
-        """)
+        // If AXRaise failed, fall back to code CLI (slower but more reliable)
+        if !axRaiseSuccess {
+            debugLog("Falling back to code CLI...")
+
+            if let cwd = cwd {
+                // Find VS Code CLI path (may not be in PATH)
+                let codePaths = [
+                    "/usr/local/bin/code",
+                    "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code",
+                    "/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/bin/code"
+                ]
+
+                var codePath: String? = nil
+                for path in codePaths {
+                    if FileManager.default.fileExists(atPath: path) {
+                        codePath = path
+                        break
+                    }
+                }
+
+                if let codePath = codePath {
+                    debugLog("Running: \(codePath) \(cwd)")
+                    let task = Process()
+                    task.launchPath = codePath
+                    task.arguments = [cwd]
+                    task.standardOutput = FileHandle.nullDevice
+                    task.standardError = FileHandle.nullDevice
+                    do {
+                        try task.run()
+                        task.waitUntilExit()
+                        debugLog("code command exit status: \(task.terminationStatus)")
+                    } catch {
+                        debugLog("code command failed: \(error)")
+                    }
+                } else {
+                    debugLog("VS Code CLI not found in any known location")
+                }
+            }
+
+            // Bring VS Code to front
+            debugLog("Running AppleScript to activate VS Code")
+            runAppleScript("""
+            tell application "Visual Studio Code"
+                activate
+            end tell
+            tell application "System Events"
+                set frontmost of process "Code" to true
+            end tell
+            """)
+        }
 
         // Focus terminal using VS Code URL scheme
         debugLog("Running vscode:// URL scheme for terminal focus")
-        let task = Process()
-        task.launchPath = "/usr/bin/open"
-        task.arguments = ["vscode://command/workbench.action.terminal.focus"]
-        task.standardOutput = FileHandle.nullDevice
-        task.standardError = FileHandle.nullDevice
-        try? task.run()
+        let urlTask = Process()
+        urlTask.launchPath = "/usr/bin/open"
+        urlTask.arguments = ["vscode://command/workbench.action.terminal.focus"]
+        urlTask.standardOutput = FileHandle.nullDevice
+        urlTask.standardError = FileHandle.nullDevice
+        try? urlTask.run()
         debugLog("VS Code terminal focus command sent")
     }
 
