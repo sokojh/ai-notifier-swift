@@ -280,6 +280,7 @@ struct TerminalActivator {
         var axRaiseSuccess = false
 
         // Try AXRaise first (fast path) - uses System Events to directly raise the window
+        // Using NSAppleScript instead of osascript to use app's own accessibility permissions
         if let cwd = cwd {
             let folderName = (cwd as NSString).lastPathComponent
             debugLog("Trying AXRaise for folder: \(folderName)")
@@ -298,31 +299,17 @@ struct TerminalActivator {
             tell application "Visual Studio Code" to activate
             """
 
-            let task = Process()
-            task.launchPath = "/usr/bin/osascript"
-            task.arguments = ["-e", axRaiseScript]
-
-            let errorPipe = Pipe()
-            task.standardOutput = FileHandle.nullDevice
-            task.standardError = errorPipe
-
-            do {
-                try task.run()
-                task.waitUntilExit()
-
-                let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
-                if let errorStr = String(data: errorData, encoding: .utf8), !errorStr.isEmpty {
-                    debugLog("AXRaise error: \(errorStr)")
-                }
-
-                if task.terminationStatus == 0 {
-                    debugLog("AXRaise success!")
-                    axRaiseSuccess = true
+            var error: NSDictionary?
+            if let script = NSAppleScript(source: axRaiseScript) {
+                let result = script.executeAndReturnError(&error)
+                if let error = error {
+                    debugLog("AXRaise error: \(error)")
                 } else {
-                    debugLog("AXRaise failed with status: \(task.terminationStatus)")
+                    debugLog("AXRaise success! Result: \(result.stringValue ?? "none")")
+                    axRaiseSuccess = true
                 }
-            } catch {
-                debugLog("AXRaise execution failed: \(error)")
+            } else {
+                debugLog("Failed to create NSAppleScript")
             }
         }
 
