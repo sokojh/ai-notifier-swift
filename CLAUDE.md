@@ -129,17 +129,18 @@ rm -rf /Applications/ai-notifier.app
 
 ### ⚠️ CLI별 Hook 호출 방식 (중요!)
 
-**각 CLI마다 hook 호출 방식이 다름. 새 기능 추가 시 반드시 3개 CLI 모두 테스트할 것!**
+**각 CLI마다 hook 호출 방식이 다름. 새 기능 추가 시 반드시 4개 CLI 모두 테스트할 것!**
 
-| CLI | 데이터 전달 방식 | Hook 모드 감지 | 설정 파일 |
-|-----|-----------------|---------------|----------|
+| CLI | 데이터 전달 방식 | Hook 모드 감지 | 설정 파일/방식 |
+|-----|-----------------|---------------|---------------|
 | **Claude** | stdin (pipe) | `isatty(stdin) == 0` | `~/.claude/settings.json` |
 | **Gemini** | stdin (pipe) | `isatty(stdin) == 0` | `~/.gemini/settings.json` |
 | **Codex** | argv[1] (JSON) | `argv[1].hasPrefix("{")` | `~/.codex/config.toml` |
+| **OpenCode** | stdin (pipe) | `OPENCODE` 환경변수 또는 `cli:"opencode"` | `~/.opencode/plugin/ai-notifier.ts` (플러그인) |
 
 **Hook 모드 감지 코드:**
 ```swift
-let hasStdinData = isatty(stdin) == 0           // Claude, Gemini
+let hasStdinData = isatty(stdin) == 0           // Claude, Gemini, OpenCode
 let hasArgvData = argv[1].hasPrefix("{")        // Codex
 let isHookMode = hasStdinData || hasArgvData
 ```
@@ -151,6 +152,7 @@ let isHookMode = hasStdinData || hasArgvData
 | **Claude** | `hook_event_name`: Stop, Notification / `notification_type`: idle_prompt, permission_prompt |
 | **Gemini** | 스트리밍 응답마다 hook 호출 → 디바운싱 필수 (`finishReason == "STOP"` 체크) |
 | **Codex** | TOML 설정 파일 사용, `[notice]` 섹션에 `notify` 배열로 설정 |
+| **OpenCode** | **플러그인 방식** - TypeScript 파일을 `~/.opencode/plugin/`에 배치. `session.idle` 이벤트 사용. 기존 CLI 설정과 완전 분리 |
 
 **테스트 명령어:**
 ```bash
@@ -162,6 +164,9 @@ echo '{"hook_event_name":"AfterModel","finishReason":"STOP","cwd":"/tmp"}' | /Ap
 
 # Codex (argv)
 /Applications/ai-notifier.app/Contents/MacOS/ai-notifier '{"event":"agent-turn-complete","cwd":"/tmp"}'
+
+# OpenCode (stdin - plugin이 전송하는 형식)
+echo '{"hook_event_name":"Stop","cwd":"/tmp","cli":"opencode"}' | /Applications/ai-notifier.app/Contents/MacOS/ai-notifier
 ```
 
 ---
