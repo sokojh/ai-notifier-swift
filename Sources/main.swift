@@ -1821,14 +1821,21 @@ func main() {
         // Check if launched directly (TTY) - user double-clicked the app
         let isDirectLaunch = isatty(FileHandle.standardInput.fileDescriptor) != 0
         if isDirectLaunch {
-            debugLog("Direct launch detected - running setup mode")
-            runSetupMode()
+            // Only run setup if not already configured
+            let configuredFlag = NSString(string: "~/.ai-notifier-configured").expandingTildeInPath
+            if !FileManager.default.fileExists(atPath: configuredFlag) {
+                debugLog("Direct launch detected (not configured) - running setup mode")
+                runSetupMode()
+                try? "".write(toFile: configuredFlag, atomically: true, encoding: .utf8)
+            } else {
+                debugLog("Direct launch detected (already configured) - running setup mode for settings")
+                runSetupMode()
+            }
             return
         }
 
-        // No recent session and not direct launch - run setup mode
-        debugLog("No recent session found - running setup mode")
-        runSetupMode()
+        // No input data, no recent session, not direct launch - nothing to do
+        debugLog("No input data and no recent session - exiting")
         return
     }
 
