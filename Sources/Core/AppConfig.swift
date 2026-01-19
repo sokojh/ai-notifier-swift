@@ -10,11 +10,11 @@ struct NtfyAuth: Codable {
 }
 
 struct NtfySettings: Codable {
-    let enabled: Bool
-    let server: String
-    let topic: String
-    let priority: String?
-    let auth: NtfyAuth?
+    var enabled: Bool
+    var server: String
+    var topic: String
+    var priority: String?
+    var auth: NtfyAuth?
 
     static let `default` = NtfySettings(
         enabled: false,
@@ -23,10 +23,21 @@ struct NtfySettings: Codable {
         priority: "default",
         auth: nil
     )
+
+    /// Create settings for simple setup (no auth)
+    static func simple(enabled: Bool, server: String, topic: String) -> NtfySettings {
+        return NtfySettings(
+            enabled: enabled,
+            server: server,
+            topic: topic,
+            priority: "default",
+            auth: nil
+        )
+    }
 }
 
 struct AppConfig: Codable {
-    let ntfy: NtfySettings?
+    var ntfy: NtfySettings?
 
     static func load() -> AppConfig {
         let configPath = Config.configFile
@@ -38,5 +49,26 @@ struct AppConfig: Codable {
         }
 
         return config
+    }
+
+    func save() throws {
+        let configDir = Config.configDir
+        let configPath = Config.configFile
+
+        // Create config directory if not exists
+        if !FileManager.default.fileExists(atPath: configDir) {
+            try FileManager.default.createDirectory(
+                atPath: configDir,
+                withIntermediateDirectories: true,
+                attributes: nil
+            )
+        }
+
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let data = try encoder.encode(self)
+        try data.write(to: URL(fileURLWithPath: configPath))
+
+        debugLog("Config saved to \(configPath)")
     }
 }

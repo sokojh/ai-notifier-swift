@@ -1,5 +1,36 @@
 import Foundation
 
+// MARK: - Ntfy Error Types
+
+enum NtfyError: Error, LocalizedError {
+    case invalidURL
+    case timeout
+    case networkError(String)
+    case invalidResponse
+    case unauthorized
+    case topicNotFound
+    case serverError(Int)
+
+    var errorDescription: String? {
+        switch self {
+        case .invalidURL:
+            return "잘못된 서버 URL입니다."
+        case .timeout:
+            return "서버 연결 시간이 초과되었습니다."
+        case .networkError(let message):
+            return "네트워크 오류: \(message)"
+        case .invalidResponse:
+            return "서버 응답을 처리할 수 없습니다."
+        case .unauthorized:
+            return "인증이 필요한 토픽입니다."
+        case .topicNotFound:
+            return "토픽을 찾을 수 없습니다."
+        case .serverError(let code):
+            return "서버 오류 (\(code))"
+        }
+    }
+}
+
 // MARK: - Ntfy Client (Optional Push Notification)
 
 struct NtfyClient {
@@ -95,6 +126,58 @@ struct NtfyClient {
                 completion(success)
             } else {
                 completion(false)
+            }
+        }
+
+        task.resume()
+    }
+
+    /// Test connection to ntfy server (send a test notification)
+    static func testConnection(
+        server: String,
+        topic: String,
+        completion: @escaping (Result<Void, NtfyError>) -> Void
+    ) {
+        let urlString = "\(server)/\(topic)"
+        guard let url = URL(string: urlString) else {
+            completion(.failure(.invalidURL))
+            return
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("text/plain; charset=utf-8", forHTTPHeaderField: "Content-Type")
+        request.setValue("AI Notifier 테스트", forHTTPHeaderField: "Title")
+        request.setValue("white_check_mark", forHTTPHeaderField: "Tags")
+        request.setValue("3", forHTTPHeaderField: "Priority")
+        request.httpBody = "ntfy 연결 테스트 성공! 🎉".data(using: .utf8)
+        request.timeoutInterval = 10
+
+        let task = URLSession.shared.dataTask(with: request) { data, response, error in
+            if let error = error {
+                let nsError = error as NSError
+                if nsError.code == NSURLErrorTimedOut {
+                    completion(.failure(.timeout))
+                } else {
+                    completion(.failure(.networkError(error.localizedDescription)))
+                }
+                return
+            }
+
+            guard let httpResponse = response as? HTTPURLResponse else {
+                completion(.failure(.invalidResponse))
+                return
+            }
+
+            switch httpResponse.statusCode {
+            case 200...299:
+                completion(.success(()))
+            case 401, 403:
+                completion(.failure(.unauthorized))
+            case 404:
+                completion(.failure(.topicNotFound))
+            default:
+                completion(.failure(.serverError(httpResponse.statusCode)))
             }
         }
 

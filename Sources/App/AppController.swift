@@ -166,6 +166,10 @@ struct AppController {
         debugLog("Starting background run loop for notification click handling...")
         let app = NSApplication.shared
         app.setActivationPolicy(.accessory)  // Hide from dock
+
+        // Setup status bar icon with settings menu
+        StatusBarController.shared.setup()
+
         app.run()
     }
 }

@@ -32,9 +32,33 @@ Gemini CLI는 스트리밍 응답마다 hook을 호출하므로 디바운싱 필
 ### ntfy 헤더 매핑
 
 ntfy API 공식 문서 기준:
-- **Tags**: 이모지 short code (`robot`, `sparkles`, `computer`)
+- **Tags**: 이모지 short code (`robot`, `sparkles`, `computer`, `zap`)
 - **Priority**: 숫자 1-5 (`min`→1, `low`→2, `default`→3, `high`→4, `urgent`→5)
 - **Title**: `CLI명 - 프로젝트명 - 상태` 형식
+
+### 메뉴바 상태 아이콘
+
+**백그라운드 실행 시 메뉴바에 🔔 아이콘 표시:**
+- SF Symbol `bell.badge` 사용 (미지원 시 🔔 텍스트 fallback)
+- 메뉴: **설정...** (⌘,), **종료** (⌘Q)
+- `app.setActivationPolicy(.accessory)`로 독에서 숨김
+
+**설정 창:**
+- ntfy 푸시 알림 활성화/비활성화
+- 서버 URL, 토픽 입력
+- 테스트 버튼으로 연결 확인
+
+**설정 파일 위치:** `~/.config/ai-notifier/config.json`
+```json
+{
+  "ntfy": {
+    "enabled": true,
+    "server": "https://ntfy.sh",
+    "topic": "my-ai-notifier",
+    "priority": "default"
+  }
+}
+```
 
 ---
 
@@ -388,12 +412,13 @@ xcrun notarytool log <submission-id> --keychain-profile "AI_NOTIFIER_PROFILE"
 Sources/
 ├── main.swift                      # 진입점 (~100줄)
 ├── App/
-│   └── AppController.swift         # 메인 비즈니스 로직
+│   ├── AppController.swift         # 메인 비즈니스 로직
+│   └── StatusBarController.swift   # 메뉴바 상태 아이콘 + 설정 창
 ├── Core/
 │   ├── Config.swift                # 상수 정의
-│   ├── AppConfig.swift             # Codable 설정 모델
+│   ├── AppConfig.swift             # Codable 설정 모델 (ntfy 포함)
 │   ├── NtfyConfig.swift            # ntfy 설정 싱글톤
-│   └── NtfyClient.swift            # ntfy HTTP 클라이언트
+│   └── NtfyClient.swift            # ntfy HTTP 클라이언트 (테스트 포함)
 ├── CLI/
 │   ├── CLISource.swift             # CLISource enum
 │   ├── HookDataParser.swift        # 파서 프로토콜 + 팩토리
@@ -412,7 +437,8 @@ Sources/
 ├── Installation/
 │   └── CLIHookInstaller.swift      # CLI별 hook 설치 로직
 ├── Setup/
-│   └── SetupAppDelegate.swift      # --setup 모드 NSApplicationDelegate
+│   ├── SetupAppDelegate.swift      # --setup 모드 NSApplicationDelegate
+│   └── NtfySettingsView.swift      # ntfy 설정 UI 컴포넌트
 └── Utilities/
     ├── DebugLogging.swift          # debugLog() 함수
     ├── TextUtils.swift             # 문자열 유틸리티

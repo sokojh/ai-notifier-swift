@@ -173,10 +173,10 @@ func installHooksAndShowResult() {
     alert.messageText = "AI Notifier 설정 완료"
 
     if installedCount > 0 {
-        alert.informativeText = "알림 권한: 활성화됨\n\nCLI 훅 설정:\n• \(messages.joined(separator: "\n• "))\n\n이제 CLI 응답 완료 시 알림을 받을 수 있습니다!"
+        alert.informativeText = "알림 권한: 활성화됨\n\nCLI 훅 설정:\n• \(messages.joined(separator: "\n• "))\n\n이제 CLI 응답 완료 시 알림을 받을 수 있습니다!\n\n💡 메뉴바 🔔 아이콘에서 ntfy 푸시 알림을 설정할 수 있습니다."
         alert.alertStyle = .informational
     } else {
-        alert.informativeText = "알림 권한: 활성화됨\n\nCLI 훅 설정:\n• \(messages.joined(separator: "\n• "))\n\n설치된 CLI가 없습니다. Claude Code, Gemini CLI, Codex CLI, 또는 OpenCode를 설치한 후 다시 실행해주세요."
+        alert.informativeText = "알림 권한: 활성화됨\n\nCLI 훅 설정:\n• \(messages.joined(separator: "\n• "))\n\n설치된 CLI가 없습니다. Claude Code, Gemini CLI, Codex CLI, 또는 OpenCode를 설치한 후 다시 실행해주세요.\n\n💡 메뉴바 🔔 아이콘에서 ntfy 푸시 알림을 설정할 수 있습니다."
         alert.alertStyle = .warning
     }
 
