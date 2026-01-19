@@ -84,8 +84,8 @@ struct HookDataParser {
         case .unknown:
             return NotificationContent(
                 title: title,
-                subtitle: "알림",
-                body: "상태가 변경되었습니다",
+                subtitle: L10n.Notification.Subtitle.notification,
+                body: L10n.Notification.Body.statusChanged,
                 cli: cli,
                 terminalInfo: terminalInfo
             )

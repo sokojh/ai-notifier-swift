@@ -1,0 +1,78 @@
+/* English */
+
+/* MARK: - Notification Subtitles */
+"notification.subtitle.complete" = "Response Complete";
+"notification.subtitle.input_waiting" = "Awaiting Input";
+"notification.subtitle.permission_request" = "Permission Request";
+"notification.subtitle.permission_needed" = "Permission Needed";
+"notification.subtitle.notification" = "Notification";
+"notification.subtitle.error" = "Error Occurred";
+
+/* MARK: - Notification Body */
+"notification.body.check_response" = "Check the response";
+"notification.body.waiting_for_input" = "Waiting for user input";
+"notification.body.permission_required" = "Permission approval is required";
+"notification.body.status_changed" = "Status has changed";
+"notification.body.task_complete" = "Task completed";
+"notification.body.session_error" = "An error occurred in the session";
+"notification.body.approval_needed" = "Approval is needed";
+
+/* MARK: - Menu */
+"menu.settings" = "Settings...";
+"menu.quit" = "Quit";
+
+/* MARK: - Settings Window */
+"settings.window_title" = "AI Notifier Settings";
+"settings.ntfy_header" = "ntfy Push Notifications";
+"settings.enable_ntfy" = "Enable ntfy push notifications";
+"settings.server" = "Server:";
+"settings.topic" = "Topic:";
+"settings.test" = "Test";
+"settings.testing" = "Testing...";
+"settings.connection_success" = "Connection successful!";
+"settings.ntfy_info" = "ntfy is optional. Enable it to receive notifications on mobile devices.";
+
+/* MARK: - Buttons */
+"button.save" = "Save";
+"button.cancel" = "Cancel";
+"button.ok" = "OK";
+"button.open_settings" = "Open Settings";
+"button.close" = "Close";
+
+/* MARK: - Alerts */
+"alert.settings_saved" = "Settings Saved";
+"alert.settings_save_failed" = "Failed to Save Settings";
+"alert.ntfy_enabled" = "ntfy notifications have been enabled.";
+"alert.ntfy_disabled" = "ntfy notifications have been disabled.";
+
+/* MARK: - Ntfy Errors */
+"ntfy.error.invalid_url" = "Invalid server URL.";
+"ntfy.error.timeout" = "Server connection timed out.";
+"ntfy.error.network" = "Network error: %@";
+"ntfy.error.invalid_response" = "Unable to process server response.";
+"ntfy.error.unauthorized" = "This topic requires authentication.";
+"ntfy.error.topic_not_found" = "Topic not found.";
+"ntfy.error.server" = "Server error (%d)";
+"ntfy.error.enter_server_url" = "Please enter a server URL";
+"ntfy.error.enter_topic" = "Please enter a topic";
+
+/* MARK: - Ntfy Test */
+"ntfy.test.title" = "AI Notifier Test";
+"ntfy.test.success_message" = "ntfy connection test successful! 🎉";
+
+/* MARK: - Setup */
+"setup.preparing" = "Preparing setup...";
+"setup.installing_hooks" = "Installing CLI hooks...";
+"setup.complete" = "AI Notifier Setup Complete";
+"setup.permission_required" = "Notification permission is required.\n\nGo to System Settings > Notifications > AI Notifier and enable 'Allow Notifications'.";
+"setup.permission_enabled" = "Notification Permission: Enabled";
+"setup.cli_hook_settings" = "CLI Hook Settings:";
+"setup.success_message" = "You will now receive notifications when CLI responses complete!";
+"setup.no_cli_installed" = "No CLI installed. Please install Claude Code, Gemini CLI, Codex CLI, or OpenCode and run again.";
+"setup.ntfy_tip" = "💡 You can configure ntfy push notifications from the 🔔 menu bar icon.";
+
+/* MARK: - Hook Installation Results */
+"hook.result.installed" = "Hook installed";
+"hook.result.already_installed" = "Already configured";
+"hook.result.not_found" = "Not installed (skipped)";
+"hook.result.error" = "Error - %@";

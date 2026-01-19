@@ -14,19 +14,19 @@ enum NtfyError: Error, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidURL:
-            return "잘못된 서버 URL입니다."
+            return L10n.NtfyError.invalidURL
         case .timeout:
-            return "서버 연결 시간이 초과되었습니다."
+            return L10n.NtfyError.timeout
         case .networkError(let message):
-            return "네트워크 오류: \(message)"
+            return L10n.NtfyError.networkError(message)
         case .invalidResponse:
-            return "서버 응답을 처리할 수 없습니다."
+            return L10n.NtfyError.invalidResponse
         case .unauthorized:
-            return "인증이 필요한 토픽입니다."
+            return L10n.NtfyError.unauthorized
         case .topicNotFound:
-            return "토픽을 찾을 수 없습니다."
+            return L10n.NtfyError.topicNotFound
         case .serverError(let code):
-            return "서버 오류 (\(code))"
+            return L10n.NtfyError.serverError(code)
         }
     }
 }
@@ -147,10 +147,10 @@ struct NtfyClient {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("text/plain; charset=utf-8", forHTTPHeaderField: "Content-Type")
-        request.setValue("AI Notifier 테스트", forHTTPHeaderField: "Title")
+        request.setValue(L10n.NtfyTest.title, forHTTPHeaderField: "Title")
         request.setValue("white_check_mark", forHTTPHeaderField: "Tags")
         request.setValue("3", forHTTPHeaderField: "Priority")
-        request.httpBody = "ntfy 연결 테스트 성공! 🎉".data(using: .utf8)
+        request.httpBody = L10n.NtfyTest.successMessage.data(using: .utf8)
         request.timeoutInterval = 10
 
         let task = URLSession.shared.dataTask(with: request) { data, response, error in

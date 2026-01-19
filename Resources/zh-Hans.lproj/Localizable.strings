@@ -1,0 +1,78 @@
+/* Chinese Simplified */
+
+/* MARK: - Notification Subtitles */
+"notification.subtitle.complete" = "响应完成";
+"notification.subtitle.input_waiting" = "等待输入";
+"notification.subtitle.permission_request" = "权限请求";
+"notification.subtitle.permission_needed" = "需要权限";
+"notification.subtitle.notification" = "通知";
+"notification.subtitle.error" = "发生错误";
+
+/* MARK: - Notification Body */
+"notification.body.check_response" = "请查看响应";
+"notification.body.waiting_for_input" = "正在等待用户输入";
+"notification.body.permission_required" = "需要权限批准";
+"notification.body.status_changed" = "状态已更改";
+"notification.body.task_complete" = "任务已完成";
+"notification.body.session_error" = "会话中发生错误";
+"notification.body.approval_needed" = "需要批准";
+
+/* MARK: - Menu */
+"menu.settings" = "设置...";
+"menu.quit" = "退出";
+
+/* MARK: - Settings Window */
+"settings.window_title" = "AI Notifier 设置";
+"settings.ntfy_header" = "ntfy 推送通知";
+"settings.enable_ntfy" = "启用 ntfy 推送通知";
+"settings.server" = "服务器：";
+"settings.topic" = "主题：";
+"settings.test" = "测试";
+"settings.testing" = "测试中...";
+"settings.connection_success" = "连接成功！";
+"settings.ntfy_info" = "ntfy 是可选的。启用后可在移动设备上接收通知。";
+
+/* MARK: - Buttons */
+"button.save" = "保存";
+"button.cancel" = "取消";
+"button.ok" = "确定";
+"button.open_settings" = "打开设置";
+"button.close" = "关闭";
+
+/* MARK: - Alerts */
+"alert.settings_saved" = "设置已保存";
+"alert.settings_save_failed" = "设置保存失败";
+"alert.ntfy_enabled" = "ntfy 通知已启用。";
+"alert.ntfy_disabled" = "ntfy 通知已禁用。";
+
+/* MARK: - Ntfy Errors */
+"ntfy.error.invalid_url" = "无效的服务器 URL。";
+"ntfy.error.timeout" = "服务器连接超时。";
+"ntfy.error.network" = "网络错误：%@";
+"ntfy.error.invalid_response" = "无法处理服务器响应。";
+"ntfy.error.unauthorized" = "此主题需要身份验证。";
+"ntfy.error.topic_not_found" = "找不到主题。";
+"ntfy.error.server" = "服务器错误 (%d)";
+"ntfy.error.enter_server_url" = "请输入服务器 URL";
+"ntfy.error.enter_topic" = "请输入主题";
+
+/* MARK: - Ntfy Test */
+"ntfy.test.title" = "AI Notifier 测试";
+"ntfy.test.success_message" = "ntfy 连接测试成功！🎉";
+
+/* MARK: - Setup */
+"setup.preparing" = "准备设置中...";
+"setup.installing_hooks" = "正在安装 CLI 钩子...";
+"setup.complete" = "AI Notifier 设置完成";
+"setup.permission_required" = "需要通知权限。\n\n请前往系统设置 > 通知 > AI Notifier，启用"允许通知"。";
+"setup.permission_enabled" = "通知权限：已启用";
+"setup.cli_hook_settings" = "CLI 钩子设置：";
+"setup.success_message" = "现在您可以在 CLI 响应完成时收到通知！";
+"setup.no_cli_installed" = "未安装任何 CLI。请安装 Claude Code、Gemini CLI、Codex CLI 或 OpenCode 后重新运行。";
+"setup.ntfy_tip" = "💡 您可以从菜单栏 🔔 图标配置 ntfy 推送通知。";
+
+/* MARK: - Hook Installation Results */
+"hook.result.installed" = "钩子已安装";
+"hook.result.already_installed" = "已配置";
+"hook.result.not_found" = "未安装（已跳过）";
+"hook.result.error" = "错误 - %@";

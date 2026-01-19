@@ -96,6 +96,14 @@ if [ -d "$SCRIPT_DIR/Resources" ]; then
     cp "$SCRIPT_DIR/Resources/"*.png "$APP_BUNDLE/Contents/Resources/" 2>/dev/null || true
     cp "$SCRIPT_DIR/Resources/"*.icns "$APP_BUNDLE/Contents/Resources/" 2>/dev/null || true
     echo "Icon resources copied"
+
+    # Copy localization folders
+    for lproj in "$SCRIPT_DIR/Resources/"*.lproj; do
+        if [ -d "$lproj" ]; then
+            cp -r "$lproj" "$APP_BUNDLE/Contents/Resources/"
+        fi
+    done
+    echo "Localization resources copied"
 fi
 
 # Generate Info.plist
@@ -130,6 +138,19 @@ cat > "$APP_BUNDLE/Contents/Info.plist" << EOF
     <true/>
     <key>CFBundleIconFile</key>
     <string>AppIcon</string>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleLocalizations</key>
+    <array>
+        <string>en</string>
+        <string>ko</string>
+        <string>zh-Hans</string>
+        <string>ja</string>
+        <string>es</string>
+        <string>de</string>
+        <string>ru</string>
+        <string>hi</string>
+    </array>
     <key>CFBundleURLTypes</key>
     <array>
         <dict>

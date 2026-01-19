@@ -25,6 +25,11 @@ Swift로 작성되어 `UNUserNotificationCenter` API를 사용하며, macOS Sequ
 - [ntfy.sh](https://ntfy.sh)를 통한 모바일 푸시 알림
 - Self-hosted ntfy 서버 지원 (Bearer/Basic 인증)
 
+**다국어 지원**
+- 8개 언어 지원: 영어, 한국어, 일본어, 중국어(간체), 스페인어, 독일어, 러시아어, 힌디어
+- macOS 시스템 언어 설정에 따라 자동 선택
+- 영어가 기본/fallback 언어
+
 ---
 
 ## 설치
@@ -194,47 +199,81 @@ EOF
 <details>
 <summary><strong>Codex CLI</strong></summary>
 
-`~/.codex/config.toml`:
+`~/.codex/config.toml` (⚠️ `notify`는 반드시 **루트 레벨**에 위치해야 함!):
 ```toml
-[notice]
+# 루트 레벨에 배치 (중요!)
 notify = ["/Applications/ai-notifier.app/Contents/MacOS/ai-notifier"]
+
+# [notice] 섹션은 별개 용도 (in-product notices 설정)
+[notice]
+hide_gpt5_1_migration_prompt = true
 ```
 </details>
 
 <details>
 <summary><strong>OpenCode</strong></summary>
 
-OpenCode는 플러그인 방식으로 동작합니다. `--setup` 실행 시 자동 설치됩니다.
+OpenCode는 `@opencode-ai/plugin` SDK 기반 플러그인 방식으로 동작합니다. `--setup` 실행 시 자동 설치됩니다.
 
-`~/.opencode/plugin/ai-notifier.ts`:
+**플러그인 위치:** `~/.config/opencode/plugin/ai-notifier.ts`
+
 ```typescript
-import { defineHook } from "opencode";
+import type { Plugin } from "@opencode-ai/plugin";
 import { execSync } from "child_process";
 import { basename } from "path";
 
-function notify(eventType: string, responsePreview?: string) {
-  const cwd = process.cwd();
-  const data = JSON.stringify({
-    hook_event_name: eventType,
-    cwd: cwd,
-    cli: "opencode",
-    project_name: basename(cwd),
-    response_preview: responsePreview || ""
-  });
-  execSync(`echo '${data.replace(/'/g, "'\\''")}' | /Applications/ai-notifier.app/Contents/MacOS/ai-notifier`, {
-    stdio: 'ignore',
-    timeout: 5000
-  });
+function notify(eventType: string, projectName: string, responsePreview?: string) {
+  try {
+    const cwd = process.cwd();
+    const data = JSON.stringify({
+      hook_event_name: eventType,
+      cwd: cwd,
+      cli: "opencode",
+      project_name: projectName || basename(cwd),
+      response_preview: responsePreview || ""
+    });
+    execSync(`echo '${data.replace(/'/g, "'\\''")}' | /Applications/ai-notifier.app/Contents/MacOS/ai-notifier`, {
+      stdio: 'ignore',
+      timeout: 5000
+    });
+  } catch (e) {
+    // Ignore errors silently
+  }
 }
 
-export default defineHook({
-  name: "ai-notifier",
-  events: {
-    "session.idle": async (ctx) => { notify("complete"); },
-    "session.error": async (ctx) => { notify("error"); }
-  },
-  "permission.ask": async () => { notify("permission"); }
-});
+export const AiNotifierPlugin: Plugin = async ({ directory }) => {
+  const projectName = basename(directory);
+  let lastResponseText = "";
+
+  return {
+    event: async (eventData: any) => {
+      const eventType = eventData?.event?.type;
+      const props = eventData?.event?.properties;
+
+      // Track assistant response text
+      if (eventType === "message.part.updated") {
+        const part = props?.part;
+        if (part?.type === "text" && part?.text) {
+          lastResponseText = part.text.trim();
+        }
+      }
+
+      if (eventType === "session.idle") {
+        notify("complete", projectName, lastResponseText.substring(0, 200));
+        lastResponseText = "";
+      } else if (eventType === "session.error") {
+        notify("error", projectName);
+        lastResponseText = "";
+      }
+    },
+
+    "permission.ask": async () => {
+      notify("permission", projectName);
+    }
+  };
+};
+
+export default AiNotifierPlugin;
 ```
 
 **지원 이벤트:**
@@ -280,6 +319,36 @@ echo '{"hook_event_name":"Stop","cwd":"/tmp/test"}' | \
 # 디버그 로그 확인
 tail -f /tmp/ai-notifier-debug.log
 ```
+
+---
+
+## 다국어 지원 (Internationalization)
+
+macOS 시스템 언어 설정에 따라 알림 및 UI가 자동으로 해당 언어로 표시됩니다.
+
+### 지원 언어
+
+| 언어 | 코드 | 상태 |
+|------|------|------|
+| English | en | 기본 (fallback) |
+| 한국어 | ko | ✅ |
+| 日本語 | ja | ✅ |
+| 简体中文 | zh-Hans | ✅ |
+| Español | es | ✅ |
+| Deutsch | de | ✅ |
+| Русский | ru | ✅ |
+| हिन्दी | hi | ✅ |
+
+### 언어 변경 방법
+
+시스템 설정 → 일반 → 언어 및 지역 → 선호하는 언어 순서 변경
+
+### 새 언어 추가 (개발자용)
+
+1. `Resources/{lang-code}.lproj/Localizable.strings` 생성
+2. `ko.lproj/Localizable.strings`의 키를 복사하여 번역
+3. `build.sh`의 `CFBundleLocalizations` 배열에 언어 코드 추가
+4. 빌드 후 테스트
 
 ---
 

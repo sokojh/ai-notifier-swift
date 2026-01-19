@@ -1,0 +1,78 @@
+/* Russian */
+
+/* MARK: - Notification Subtitles */
+"notification.subtitle.complete" = "Ответ получен";
+"notification.subtitle.input_waiting" = "Ожидание ввода";
+"notification.subtitle.permission_request" = "Запрос разрешения";
+"notification.subtitle.permission_needed" = "Требуется разрешение";
+"notification.subtitle.notification" = "Уведомление";
+"notification.subtitle.error" = "Произошла ошибка";
+
+/* MARK: - Notification Body */
+"notification.body.check_response" = "Проверьте ответ";
+"notification.body.waiting_for_input" = "Ожидание ввода пользователя";
+"notification.body.permission_required" = "Требуется подтверждение разрешения";
+"notification.body.status_changed" = "Статус изменён";
+"notification.body.task_complete" = "Задача выполнена";
+"notification.body.session_error" = "В сеансе произошла ошибка";
+"notification.body.approval_needed" = "Требуется одобрение";
+
+/* MARK: - Menu */
+"menu.settings" = "Настройки...";
+"menu.quit" = "Выход";
+
+/* MARK: - Settings Window */
+"settings.window_title" = "Настройки AI Notifier";
+"settings.ntfy_header" = "Push-уведомления ntfy";
+"settings.enable_ntfy" = "Включить push-уведомления ntfy";
+"settings.server" = "Сервер:";
+"settings.topic" = "Тема:";
+"settings.test" = "Тест";
+"settings.testing" = "Тестирование...";
+"settings.connection_success" = "Подключение успешно!";
+"settings.ntfy_info" = "ntfy опционален. Включите для получения уведомлений на мобильных устройствах.";
+
+/* MARK: - Buttons */
+"button.save" = "Сохранить";
+"button.cancel" = "Отмена";
+"button.ok" = "ОК";
+"button.open_settings" = "Открыть настройки";
+"button.close" = "Закрыть";
+
+/* MARK: - Alerts */
+"alert.settings_saved" = "Настройки сохранены";
+"alert.settings_save_failed" = "Ошибка сохранения настроек";
+"alert.ntfy_enabled" = "Уведомления ntfy включены.";
+"alert.ntfy_disabled" = "Уведомления ntfy отключены.";
+
+/* MARK: - Ntfy Errors */
+"ntfy.error.invalid_url" = "Неверный URL сервера.";
+"ntfy.error.timeout" = "Время ожидания подключения истекло.";
+"ntfy.error.network" = "Сетевая ошибка: %@";
+"ntfy.error.invalid_response" = "Невозможно обработать ответ сервера.";
+"ntfy.error.unauthorized" = "Эта тема требует аутентификации.";
+"ntfy.error.topic_not_found" = "Тема не найдена.";
+"ntfy.error.server" = "Ошибка сервера (%d)";
+"ntfy.error.enter_server_url" = "Пожалуйста, введите URL сервера";
+"ntfy.error.enter_topic" = "Пожалуйста, введите тему";
+
+/* MARK: - Ntfy Test */
+"ntfy.test.title" = "Тест AI Notifier";
+"ntfy.test.success_message" = "Тест подключения ntfy успешен! 🎉";
+
+/* MARK: - Setup */
+"setup.preparing" = "Подготовка настройки...";
+"setup.installing_hooks" = "Установка CLI-хуков...";
+"setup.complete" = "Настройка AI Notifier завершена";
+"setup.permission_required" = "Требуется разрешение на уведомления.\n\nПерейдите в Системные настройки > Уведомления > AI Notifier и включите 'Разрешить уведомления'.";
+"setup.permission_enabled" = "Разрешение на уведомления: Включено";
+"setup.cli_hook_settings" = "Настройки CLI-хуков:";
+"setup.success_message" = "Теперь вы будете получать уведомления о завершении ответов CLI!";
+"setup.no_cli_installed" = "CLI не установлен. Пожалуйста, установите Claude Code, Gemini CLI, Codex CLI или OpenCode и запустите снова.";
+"setup.ntfy_tip" = "💡 Вы можете настроить push-уведомления ntfy через значок 🔔 в строке меню.";
+
+/* MARK: - Hook Installation Results */
+"hook.result.installed" = "Хук установлен";
+"hook.result.already_installed" = "Уже настроено";
+"hook.result.not_found" = "Не установлено (пропущено)";
+"hook.result.error" = "Ошибка - %@";

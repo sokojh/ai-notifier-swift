@@ -64,7 +64,7 @@ class SetupAppDelegate: NSObject, NSApplicationDelegate {
         contentView.addSubview(indicator)
 
         // Label
-        let label = NSTextField(labelWithString: "설정 준비 중...")
+        let label = NSTextField(labelWithString: L10n.Setup.preparing)
         label.frame = NSRect(x: 0, y: 15, width: 280, height: 20)
         label.alignment = .center
         label.font = NSFont.systemFont(ofSize: 13)
@@ -116,10 +116,10 @@ class SetupAppDelegate: NSObject, NSApplicationDelegate {
                 if !granted {
                     let alert = NSAlert()
                     alert.messageText = "AI Notifier"
-                    alert.informativeText = "알림 권한이 필요합니다.\n\n시스템 설정 > 알림 > AI Notifier에서 '알림 허용'을 켜주세요."
+                    alert.informativeText = L10n.Setup.permissionRequired
                     alert.alertStyle = .warning
-                    alert.addButton(withTitle: "설정 열기")
-                    alert.addButton(withTitle: "닫기")
+                    alert.addButton(withTitle: L10n.Button.openSettings)
+                    alert.addButton(withTitle: L10n.Button.close)
 
                     if alert.runModal() == .alertFirstButtonReturn {
                         NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension")!)
@@ -153,7 +153,7 @@ func runSetupMode() {
 
 func installHooksAndShowResult() {
     // Show loading window during hook installation
-    let loadingWindow = createLoadingWindow(message: "CLI 훅 설치 중...")
+    let loadingWindow = createLoadingWindow(message: L10n.Setup.installingHooks)
 
     // Install hooks in background thread to avoid UI blocking
     DispatchQueue.global(qos: .userInitiated).async {
@@ -178,19 +178,40 @@ func installHooksAndShowResult() {
             loadingWindow.close()
 
             let alert = NSAlert()
-            alert.messageText = "AI Notifier 설정 완료"
+            alert.messageText = L10n.Setup.complete
 
             if installedCount > 0 {
-                alert.informativeText = "알림 권한: 활성화됨\n\nCLI 훅 설정:\n• \(messages.joined(separator: "\n• "))\n\n이제 CLI 응답 완료 시 알림을 받을 수 있습니다!\n\n💡 메뉴바 🔔 아이콘에서 ntfy 푸시 알림을 설정할 수 있습니다."
+                alert.informativeText = "\(L10n.Setup.permissionEnabled)\n\n\(L10n.Setup.cliHookSettings)\n• \(messages.joined(separator: "\n• "))\n\n\(L10n.Setup.setupSuccessMessage)\n\n\(L10n.Setup.ntfyTip)"
                 alert.alertStyle = .informational
             } else {
-                alert.informativeText = "알림 권한: 활성화됨\n\nCLI 훅 설정:\n• \(messages.joined(separator: "\n• "))\n\n설치된 CLI가 없습니다. Claude Code, Gemini CLI, Codex CLI, 또는 OpenCode를 설치한 후 다시 실행해주세요.\n\n💡 메뉴바 🔔 아이콘에서 ntfy 푸시 알림을 설정할 수 있습니다."
+                alert.informativeText = "\(L10n.Setup.permissionEnabled)\n\n\(L10n.Setup.cliHookSettings)\n• \(messages.joined(separator: "\n• "))\n\n\(L10n.Setup.noCLIInstalled)\n\n\(L10n.Setup.ntfyTip)"
                 alert.alertStyle = .warning
             }
 
-            alert.addButton(withTitle: "확인")
+            alert.addButton(withTitle: L10n.Button.ok)
             alert.runModal()
-            exit(0)
+
+            // Switch to background mode instead of exiting
+            // This allows the menu bar icon to remain visible for ntfy settings
+            debugLog("Setup complete, switching to background mode")
+
+            // Check if another instance is already running
+            if ProcessManager.isAnotherInstanceRunning() {
+                debugLog("Another instance already running, exiting setup")
+                exit(0)
+            }
+
+            // Write PID file and setup cleanup
+            ProcessManager.writePIDFile()
+            ProcessManager.setupCleanup()
+
+            let app = NSApplication.shared
+            app.setActivationPolicy(.accessory)  // Hide from dock
+
+            // Setup status bar icon
+            StatusBarController.shared.setup()
+
+            // App continues running in background with menu bar icon
         }
     }
 }

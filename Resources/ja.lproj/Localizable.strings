@@ -1,0 +1,78 @@
+/* Japanese */
+
+/* MARK: - Notification Subtitles */
+"notification.subtitle.complete" = "応答完了";
+"notification.subtitle.input_waiting" = "入力待ち";
+"notification.subtitle.permission_request" = "権限リクエスト";
+"notification.subtitle.permission_needed" = "権限が必要";
+"notification.subtitle.notification" = "通知";
+"notification.subtitle.error" = "エラー発生";
+
+/* MARK: - Notification Body */
+"notification.body.check_response" = "応答を確認してください";
+"notification.body.waiting_for_input" = "ユーザー入力を待っています";
+"notification.body.permission_required" = "権限の承認が必要です";
+"notification.body.status_changed" = "ステータスが変更されました";
+"notification.body.task_complete" = "タスクが完了しました";
+"notification.body.session_error" = "セッションでエラーが発生しました";
+"notification.body.approval_needed" = "承認が必要です";
+
+/* MARK: - Menu */
+"menu.settings" = "設定...";
+"menu.quit" = "終了";
+
+/* MARK: - Settings Window */
+"settings.window_title" = "AI Notifier 設定";
+"settings.ntfy_header" = "ntfy プッシュ通知";
+"settings.enable_ntfy" = "ntfy プッシュ通知を有効にする";
+"settings.server" = "サーバー：";
+"settings.topic" = "トピック：";
+"settings.test" = "テスト";
+"settings.testing" = "テスト中...";
+"settings.connection_success" = "接続成功！";
+"settings.ntfy_info" = "ntfy はオプションです。モバイルデバイスで通知を受け取るには有効にしてください。";
+
+/* MARK: - Buttons */
+"button.save" = "保存";
+"button.cancel" = "キャンセル";
+"button.ok" = "OK";
+"button.open_settings" = "設定を開く";
+"button.close" = "閉じる";
+
+/* MARK: - Alerts */
+"alert.settings_saved" = "設定を保存しました";
+"alert.settings_save_failed" = "設定の保存に失敗しました";
+"alert.ntfy_enabled" = "ntfy 通知が有効になりました。";
+"alert.ntfy_disabled" = "ntfy 通知が無効になりました。";
+
+/* MARK: - Ntfy Errors */
+"ntfy.error.invalid_url" = "無効なサーバー URL です。";
+"ntfy.error.timeout" = "サーバー接続がタイムアウトしました。";
+"ntfy.error.network" = "ネットワークエラー：%@";
+"ntfy.error.invalid_response" = "サーバーの応答を処理できません。";
+"ntfy.error.unauthorized" = "このトピックには認証が必要です。";
+"ntfy.error.topic_not_found" = "トピックが見つかりません。";
+"ntfy.error.server" = "サーバーエラー (%d)";
+"ntfy.error.enter_server_url" = "サーバー URL を入力してください";
+"ntfy.error.enter_topic" = "トピックを入力してください";
+
+/* MARK: - Ntfy Test */
+"ntfy.test.title" = "AI Notifier テスト";
+"ntfy.test.success_message" = "ntfy 接続テスト成功！🎉";
+
+/* MARK: - Setup */
+"setup.preparing" = "設定を準備中...";
+"setup.installing_hooks" = "CLI フックをインストール中...";
+"setup.complete" = "AI Notifier 設定完了";
+"setup.permission_required" = "通知の許可が必要です。\n\nシステム設定 > 通知 > AI Notifier で「通知を許可」を有効にしてください。";
+"setup.permission_enabled" = "通知許可：有効";
+"setup.cli_hook_settings" = "CLI フック設定：";
+"setup.success_message" = "CLI の応答完了時に通知を受け取れるようになりました！";
+"setup.no_cli_installed" = "CLI がインストールされていません。Claude Code、Gemini CLI、Codex CLI、または OpenCode をインストールしてから再実行してください。";
+"setup.ntfy_tip" = "💡 メニューバーの 🔔 アイコンから ntfy プッシュ通知を設定できます。";
+
+/* MARK: - Hook Installation Results */
+"hook.result.installed" = "フックをインストールしました";
+"hook.result.already_installed" = "設定済み";
+"hook.result.not_found" = "未インストール（スキップ）";
+"hook.result.error" = "エラー - %@";

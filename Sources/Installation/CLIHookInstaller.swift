@@ -234,14 +234,22 @@ struct CLIHookInstaller {
         let pluginDir = NSString(string: "~/.config/opencode/plugin").expandingTildeInPath
         let pluginFile = "\(pluginDir)/ai-notifier.ts"
         let openCodeConfigDir = NSString(string: "~/.config/opencode").expandingTildeInPath
+        let openCodeHomeDir = NSString(string: "~/.opencode").expandingTildeInPath
 
         // Check if OpenCode CLI is installed
         let openCodeExists = FileManager.default.fileExists(atPath: openCodeConfigDir) ||
+                            FileManager.default.fileExists(atPath: openCodeHomeDir) ||
                             FileManager.default.fileExists(atPath: "/usr/local/bin/opencode") ||
                             FileManager.default.fileExists(atPath: "/opt/homebrew/bin/opencode")
 
         if !openCodeExists {
             return .notFound
+        }
+
+        // Cleanup: Remove old broken plugin from wrong location (~/.opencode/plugin/)
+        let oldPluginDir = "\(openCodeHomeDir)/plugin"
+        if FileManager.default.fileExists(atPath: oldPluginDir) {
+            try? FileManager.default.removeItem(atPath: oldPluginDir)
         }
 
         // Check if plugin already exists
@@ -341,13 +349,13 @@ struct CLIHookInstaller {
     static func resultToString(_ result: InstallResult, cliName: String) -> String {
         switch result {
         case .installed:
-            return "\(cliName): 훅 설치 완료"
+            return "\(cliName): \(L10n.HookResult.installed)"
         case .alreadyInstalled:
-            return "\(cliName): 이미 설정됨"
+            return "\(cliName): \(L10n.HookResult.alreadyInstalled)"
         case .notFound:
-            return "\(cliName): 미설치 (건너뜀)"
+            return "\(cliName): \(L10n.HookResult.notFound)"
         case .error(let msg):
-            return "\(cliName): 오류 - \(msg)"
+            return "\(cliName): \(L10n.HookResult.error(msg))"
         }
     }
 }

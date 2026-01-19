@@ -36,6 +36,56 @@ ntfy API 공식 문서 기준:
 - **Priority**: 숫자 1-5 (`min`→1, `low`→2, `default`→3, `high`→4, `urgent`→5)
 - **Title**: `CLI명 - 프로젝트명 - 상태` 형식
 
+### 다국어 지원 (Localization)
+
+macOS 표준 `NSLocalizedString` + `.strings` 파일 방식 사용.
+
+**지원 언어 (8개):**
+| 코드 | 언어 | 폴더 |
+|------|------|------|
+| en | 영어 (기본/fallback) | `en.lproj` |
+| ko | 한국어 | `ko.lproj` |
+| ja | 일본어 | `ja.lproj` |
+| zh-Hans | 중국어 간체 | `zh-Hans.lproj` |
+| es | 스페인어 | `es.lproj` |
+| de | 독일어 | `de.lproj` |
+| ru | 러시아어 | `ru.lproj` |
+| hi | 힌디어 | `hi.lproj` |
+
+**파일 구조:**
+```
+Resources/
+├── ko.lproj/Localizable.strings  ← 기본/fallback
+├── en.lproj/Localizable.strings
+├── ja.lproj/Localizable.strings
+├── zh-Hans.lproj/Localizable.strings
+├── es.lproj/Localizable.strings
+├── de.lproj/Localizable.strings
+├── ru.lproj/Localizable.strings
+└── hi.lproj/Localizable.strings
+
+Sources/Utilities/
+└── Localization.swift           ← L10n 타입-세이프 래퍼
+```
+
+**사용법:**
+```swift
+// 직접 NSLocalizedString 대신 L10n 사용
+subtitle: L10n.Notification.Subtitle.complete      // "응답 완료" (ko) / "Response Complete" (en)
+body: L10n.Notification.Body.permissionRequired    // "권한 승인이 필요합니다" (ko) / "Permission approval is required" (en)
+```
+
+**언어 선택 로직:**
+- macOS가 시스템 언어 설정에서 `CFBundleLocalizations`에 있는 언어 중 첫 번째 매칭 언어 선택
+- 매칭 없으면 `CFBundleDevelopmentRegion` (en) 사용
+
+**새 언어 추가:**
+1. `Resources/{lang}.lproj/Localizable.strings` 생성
+2. `ko.lproj`의 키를 복사하여 번역
+3. `build.sh`의 Info.plist `CFBundleLocalizations`에 추가
+
+**주의:** CLI에서 전달하는 영어 메시지 (예: "Claude needs your permission to use Bash")는 무시하고 항상 로컬라이즈된 메시지 사용 (일관된 UI를 위해)
+
 ### 메뉴바 상태 아이콘
 
 **백그라운드 실행 시 메뉴바에 🔔 아이콘 표시:**
@@ -125,6 +175,81 @@ kitten @ focus-window --match id:$KITTY_WINDOW_ID
 ---
 
 ## 주의사항
+
+### ⚠️ 앱 종료 금지 - 백그라운드 실행 유지 필수
+
+**앱이 예상치 않게 종료되면 알림 클릭 핸들링, 메뉴바 아이콘, ntfy 설정이 불가능해집니다.**
+
+**절대 `exit(0)` 사용 금지 케이스:**
+- Setup 완료 후 → 백그라운드 모드로 전환 (`runBackgroundMode()`)
+- URL scheme 처리 후 → 백그라운드 모드로 전환
+- Saved session 처리 후 → 백그라운드 모드로 전환
+- 알림 클릭 핸들링 후 → 앱 계속 실행 유지
+
+**허용되는 종료:**
+- 사용자가 메뉴바에서 "종료" 클릭 (`NSApp.terminate(nil)`)
+- 알림 권한 거부 시 (`exit(1)`)
+- Debounced 케이스 (알림 발송 불필요) (`return`)
+
+**핵심 함수:**
+```swift
+// main.swift - 백그라운드 모드 전환
+func runBackgroundMode() {
+    let app = NSApplication.shared
+    app.setActivationPolicy(.accessory)  // 독에서 숨김
+    StatusBarController.shared.setup()   // 메뉴바 아이콘
+    _ = NotificationManager.shared       // 알림 delegate
+    app.run()                            // 이벤트 루프
+}
+```
+
+**과거 버그 (수정됨):**
+- `SetupAppDelegate:193`에서 hook 설치 후 `exit(0)` 호출 → setup 완료 후 앱이 바로 종료됨
+- `main.swift:35`에서 URL scheme 처리 후 `exit(0)` 호출 → 터미널 활성화 후 앱 종료
+- `main.swift:65`에서 saved session 처리 후 `exit(0)` 호출 → 알림 클릭 후 앱 종료
+
+### ⚠️ 프로세스 싱글톤 관리 (중복 실행 방지)
+
+**문제:** Hook 호출마다 새 프로세스가 시작되어 메뉴바 아이콘이 중복 생성됨
+
+**해결:** PID 파일 기반 싱글톤 패턴 (`ProcessManager.swift`)
+
+```swift
+// 이미 실행 중인 프로세스가 있는지 확인
+if ProcessManager.isAnotherInstanceRunning() {
+    // 알림만 보내고 종료
+    sendNotificationOnly()
+    exit(0)
+}
+
+// 첫 번째 프로세스만 백그라운드 실행
+ProcessManager.writePIDFile()
+ProcessManager.setupCleanup()  // 종료 시 PID 파일 삭제
+StatusBarController.shared.setup()
+app.run()
+```
+
+**PID 파일 위치:** `/tmp/.ai-notifier.pid`
+
+**동작 흐름:**
+1. 첫 번째 Hook 호출 → PID 파일 생성 → 백그라운드 실행 (메뉴바 🔔)
+2. 이후 Hook 호출 → PID 확인 → 알림만 보내고 종료
+3. 사용자가 "종료" 클릭 → PID 파일 삭제 → 앱 종료
+
+**디버깅:**
+```bash
+# PID 파일 확인
+cat /tmp/.ai-notifier.pid
+
+# 실행 중인 프로세스 확인
+ps aux | grep ai-notifier | grep -v grep
+
+# 강제 정리 (문제 발생 시)
+pkill -f "ai-notifier"
+rm -f /tmp/.ai-notifier.pid
+```
+
+---
 
 ### ⚠️ 신규 설치 유저 관점 필수
 
@@ -409,41 +534,54 @@ xcrun notarytool log <submission-id> --keychain-profile "AI_NOTIFIER_PROFILE"
 ## 파일 구조
 
 ```
-Sources/
-├── main.swift                      # 진입점 (~100줄)
-├── App/
-│   ├── AppController.swift         # 메인 비즈니스 로직
-│   └── StatusBarController.swift   # 메뉴바 상태 아이콘 + 설정 창
-├── Core/
-│   ├── Config.swift                # 상수 정의
-│   ├── AppConfig.swift             # Codable 설정 모델 (ntfy 포함)
-│   ├── NtfyConfig.swift            # ntfy 설정 싱글톤
-│   └── NtfyClient.swift            # ntfy HTTP 클라이언트 (테스트 포함)
-├── CLI/
-│   ├── CLISource.swift             # CLISource enum
-│   ├── HookDataParser.swift        # 파서 프로토콜 + 팩토리
-│   └── Parsers/
-│       ├── ClaudeParser.swift      # Claude CLI 파서
-│       ├── GeminiParser.swift      # Gemini CLI 파서
-│       ├── CodexParser.swift       # Codex CLI 파서
-│       └── OpenCodeParser.swift    # OpenCode CLI 파서
-├── Terminal/
-│   ├── TerminalType.swift          # TerminalType enum
-│   ├── TerminalInfo.swift          # TerminalInfo struct
-│   └── TerminalActivator.swift     # 터미널 활성화 로직
-├── Notification/
-│   ├── NotificationContent.swift   # 알림 내용 모델
-│   └── NotificationManager.swift   # UNUserNotificationCenter 래퍼
-├── Installation/
-│   └── CLIHookInstaller.swift      # CLI별 hook 설치 로직
-├── Setup/
-│   ├── SetupAppDelegate.swift      # --setup 모드 NSApplicationDelegate
-│   └── NtfySettingsView.swift      # ntfy 설정 UI 컴포넌트
-└── Utilities/
-    ├── DebugLogging.swift          # debugLog() 함수
-    ├── TextUtils.swift             # 문자열 유틸리티
-    ├── ProjectInfo.swift           # 프로젝트 정보 추출
-    └── GeminiDebouncer.swift       # Gemini 디바운싱
+ai-notifier/
+├── Sources/
+│   ├── main.swift                      # 진입점 (~100줄)
+│   ├── App/
+│   │   ├── AppController.swift         # 메인 비즈니스 로직
+│   │   └── StatusBarController.swift   # 메뉴바 상태 아이콘 + 설정 창
+│   ├── Core/
+│   │   ├── Config.swift                # 상수 정의
+│   │   ├── AppConfig.swift             # Codable 설정 모델 (ntfy 포함)
+│   │   ├── NtfyConfig.swift            # ntfy 설정 싱글톤
+│   │   └── NtfyClient.swift            # ntfy HTTP 클라이언트 (테스트 포함)
+│   ├── CLI/
+│   │   ├── CLISource.swift             # CLISource enum
+│   │   ├── HookDataParser.swift        # 파서 프로토콜 + 팩토리
+│   │   └── Parsers/
+│   │       ├── ClaudeParser.swift      # Claude CLI 파서
+│   │       ├── GeminiParser.swift      # Gemini CLI 파서
+│   │       ├── CodexParser.swift       # Codex CLI 파서
+│   │       └── OpenCodeParser.swift    # OpenCode CLI 파서
+│   ├── Terminal/
+│   │   ├── TerminalType.swift          # TerminalType enum
+│   │   ├── TerminalInfo.swift          # TerminalInfo struct
+│   │   └── TerminalActivator.swift     # 터미널 활성화 로직
+│   ├── Notification/
+│   │   ├── NotificationContent.swift   # 알림 내용 모델
+│   │   └── NotificationManager.swift   # UNUserNotificationCenter 래퍼
+│   ├── Installation/
+│   │   └── CLIHookInstaller.swift      # CLI별 hook 설치 로직
+│   ├── Setup/
+│   │   ├── SetupAppDelegate.swift      # --setup 모드 NSApplicationDelegate
+│   │   └── NtfySettingsView.swift      # ntfy 설정 UI 컴포넌트
+│   └── Utilities/
+│       ├── DebugLogging.swift          # debugLog() 함수
+│       ├── TextUtils.swift             # 문자열 유틸리티
+│       ├── ProjectInfo.swift           # 프로젝트 정보 추출
+│       ├── GeminiDebouncer.swift       # Gemini 디바운싱
+│       ├── Localization.swift          # L10n 타입-세이프 로컬라이제이션 래퍼
+│       └── ProcessManager.swift        # PID 파일 기반 싱글톤 관리
+└── Resources/
+    ├── AppIcon.icns                    # 앱 아이콘
+    ├── ko.lproj/Localizable.strings    # 한국어 (기본/fallback)
+    ├── en.lproj/Localizable.strings    # 영어
+    ├── ja.lproj/Localizable.strings    # 일본어
+    ├── zh-Hans.lproj/Localizable.strings # 중국어 간체
+    ├── es.lproj/Localizable.strings    # 스페인어
+    ├── de.lproj/Localizable.strings    # 독일어
+    ├── ru.lproj/Localizable.strings    # 러시아어
+    └── hi.lproj/Localizable.strings    # 힌디어
 ```
 
 ---

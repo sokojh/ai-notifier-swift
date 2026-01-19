@@ -18,8 +18,8 @@ struct GeminiParser {
             let response = extractResponse(from: data)
             return NotificationContent(
                 title: title,
-                subtitle: "응답 완료",
-                body: response.isEmpty ? "응답을 확인하세요" : response,
+                subtitle: L10n.Notification.Subtitle.complete,
+                body: response.isEmpty ? L10n.Notification.Body.checkResponse : response,
                 cli: cli,
                 terminalInfo: terminalInfo
             )
@@ -28,10 +28,11 @@ struct GeminiParser {
         // Notification event
         if hookName == "Notification" {
             if notificationType == "ToolPermission" {
+                // Always use localized message for consistent UI
                 return NotificationContent(
                     title: title,
-                    subtitle: "권한 요청",
-                    body: message ?? "권한 승인이 필요합니다",
+                    subtitle: L10n.Notification.Subtitle.permissionRequest,
+                    body: L10n.Notification.Body.permissionRequired,
                     cli: cli,
                     terminalInfo: terminalInfo
                 )
@@ -39,8 +40,8 @@ struct GeminiParser {
 
             return NotificationContent(
                 title: title,
-                subtitle: notificationType.isEmpty ? "알림" : notificationType,
-                body: message ?? "응답을 확인하세요",
+                subtitle: notificationType.isEmpty ? L10n.Notification.Subtitle.notification : notificationType,
+                body: message ?? L10n.Notification.Body.checkResponse,
                 cli: cli,
                 terminalInfo: terminalInfo
             )
@@ -54,8 +55,8 @@ struct GeminiParser {
 
         return NotificationContent(
             title: title,
-            subtitle: "응답 완료",
-            body: response.isEmpty ? "응답을 확인하세요" : response,
+            subtitle: L10n.Notification.Subtitle.complete,
+            body: response.isEmpty ? L10n.Notification.Body.checkResponse : response,
             cli: cli,
             terminalInfo: terminalInfo
         )

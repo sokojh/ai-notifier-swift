@@ -1,0 +1,78 @@
+/* German */
+
+/* MARK: - Notification Subtitles */
+"notification.subtitle.complete" = "Antwort abgeschlossen";
+"notification.subtitle.input_waiting" = "Warten auf Eingabe";
+"notification.subtitle.permission_request" = "Berechtigungsanfrage";
+"notification.subtitle.permission_needed" = "Berechtigung erforderlich";
+"notification.subtitle.notification" = "Benachrichtigung";
+"notification.subtitle.error" = "Fehler aufgetreten";
+
+/* MARK: - Notification Body */
+"notification.body.check_response" = "Antwort überprüfen";
+"notification.body.waiting_for_input" = "Warten auf Benutzereingabe";
+"notification.body.permission_required" = "Genehmigung erforderlich";
+"notification.body.status_changed" = "Status wurde geändert";
+"notification.body.task_complete" = "Aufgabe abgeschlossen";
+"notification.body.session_error" = "In der Sitzung ist ein Fehler aufgetreten";
+"notification.body.approval_needed" = "Genehmigung erforderlich";
+
+/* MARK: - Menu */
+"menu.settings" = "Einstellungen...";
+"menu.quit" = "Beenden";
+
+/* MARK: - Settings Window */
+"settings.window_title" = "AI Notifier Einstellungen";
+"settings.ntfy_header" = "ntfy Push-Benachrichtigungen";
+"settings.enable_ntfy" = "ntfy Push-Benachrichtigungen aktivieren";
+"settings.server" = "Server:";
+"settings.topic" = "Thema:";
+"settings.test" = "Testen";
+"settings.testing" = "Teste...";
+"settings.connection_success" = "Verbindung erfolgreich!";
+"settings.ntfy_info" = "ntfy ist optional. Aktivieren Sie es, um Benachrichtigungen auf Mobilgeräten zu erhalten.";
+
+/* MARK: - Buttons */
+"button.save" = "Speichern";
+"button.cancel" = "Abbrechen";
+"button.ok" = "OK";
+"button.open_settings" = "Einstellungen öffnen";
+"button.close" = "Schließen";
+
+/* MARK: - Alerts */
+"alert.settings_saved" = "Einstellungen gespeichert";
+"alert.settings_save_failed" = "Speichern der Einstellungen fehlgeschlagen";
+"alert.ntfy_enabled" = "ntfy-Benachrichtigungen wurden aktiviert.";
+"alert.ntfy_disabled" = "ntfy-Benachrichtigungen wurden deaktiviert.";
+
+/* MARK: - Ntfy Errors */
+"ntfy.error.invalid_url" = "Ungültige Server-URL.";
+"ntfy.error.timeout" = "Zeitüberschreitung bei der Serververbindung.";
+"ntfy.error.network" = "Netzwerkfehler: %@";
+"ntfy.error.invalid_response" = "Serverantwort kann nicht verarbeitet werden.";
+"ntfy.error.unauthorized" = "Dieses Thema erfordert Authentifizierung.";
+"ntfy.error.topic_not_found" = "Thema nicht gefunden.";
+"ntfy.error.server" = "Serverfehler (%d)";
+"ntfy.error.enter_server_url" = "Bitte Server-URL eingeben";
+"ntfy.error.enter_topic" = "Bitte Thema eingeben";
+
+/* MARK: - Ntfy Test */
+"ntfy.test.title" = "AI Notifier Test";
+"ntfy.test.success_message" = "ntfy Verbindungstest erfolgreich! 🎉";
+
+/* MARK: - Setup */
+"setup.preparing" = "Einrichtung wird vorbereitet...";
+"setup.installing_hooks" = "CLI-Hooks werden installiert...";
+"setup.complete" = "AI Notifier Einrichtung abgeschlossen";
+"setup.permission_required" = "Benachrichtigungsberechtigung erforderlich.\n\nGehen Sie zu Systemeinstellungen > Mitteilungen > AI Notifier und aktivieren Sie 'Mitteilungen erlauben'.";
+"setup.permission_enabled" = "Benachrichtigungsberechtigung: Aktiviert";
+"setup.cli_hook_settings" = "CLI-Hook-Einstellungen:";
+"setup.success_message" = "Sie erhalten jetzt Benachrichtigungen, wenn CLI-Antworten abgeschlossen sind!";
+"setup.no_cli_installed" = "Kein CLI installiert. Bitte installieren Sie Claude Code, Gemini CLI, Codex CLI oder OpenCode und führen Sie erneut aus.";
+"setup.ntfy_tip" = "💡 Sie können ntfy Push-Benachrichtigungen über das 🔔 Symbol in der Menüleiste konfigurieren.";
+
+/* MARK: - Hook Installation Results */
+"hook.result.installed" = "Hook installiert";
+"hook.result.already_installed" = "Bereits konfiguriert";
+"hook.result.not_found" = "Nicht installiert (übersprungen)";
+"hook.result.error" = "Fehler - %@";

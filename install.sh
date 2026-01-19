@@ -20,6 +20,7 @@ echo "지원 CLI:"
 echo "  • Claude Code (Anthropic)"
 echo "  • Codex CLI (OpenAI)"
 echo "  • Gemini CLI (Google)"
+echo "  • OpenCode"
 echo ""
 
 # ===========================================
@@ -287,6 +288,80 @@ if command -v codex &> /dev/null || [ -f "$CODEX_CONFIG" ]; then
     echo "   ✓ Codex CLI"
 else
     echo "   - Codex CLI (미설치)"
+fi
+
+# OpenCode 설정 (Plugin-based)
+OPENCODE_PLUGIN_DIR="$HOME/.config/opencode/plugin"
+OPENCODE_CONFIG_DIR="$HOME/.config/opencode"
+if command -v opencode &> /dev/null || [ -d "$OPENCODE_CONFIG_DIR" ] || [ -d "$HOME/.opencode" ]; then
+    mkdir -p "$OPENCODE_PLUGIN_DIR"
+
+    # Remove old broken plugin from wrong location if exists
+    rm -rf "$HOME/.opencode/plugin" 2>/dev/null || true
+
+    # Create plugin file
+    cat > "$OPENCODE_PLUGIN_DIR/ai-notifier.ts" << 'PLUGIN_EOF'
+import type { Plugin } from "@opencode-ai/plugin";
+import { execSync } from "child_process";
+import { basename } from "path";
+
+function notify(eventType: string, projectName: string, responsePreview?: string) {
+  try {
+    const cwd = process.cwd();
+    const data = JSON.stringify({
+      hook_event_name: eventType,
+      cwd: cwd,
+      cli: "opencode",
+      project_name: projectName || basename(cwd),
+      response_preview: responsePreview || ""
+    });
+    execSync(`echo '${data.replace(/'/g, "'\\''")}' | /Applications/ai-notifier.app/Contents/MacOS/ai-notifier`, {
+      stdio: 'ignore',
+      timeout: 5000
+    });
+  } catch (e) {
+    // Ignore errors silently
+  }
+}
+
+export const AiNotifierPlugin: Plugin = async ({ directory }) => {
+  const projectName = basename(directory);
+  let lastResponseText = "";
+
+  return {
+    event: async (eventData: any) => {
+      const eventType = eventData?.event?.type;
+      const props = eventData?.event?.properties;
+
+      // Track assistant response text
+      if (eventType === "message.part.updated") {
+        const part = props?.part;
+        if (part?.type === "text" && part?.text) {
+          lastResponseText = part.text.trim();
+        }
+      }
+
+      if (eventType === "session.idle") {
+        const preview = lastResponseText.substring(0, 200);
+        notify("complete", projectName, preview);
+        lastResponseText = "";
+      } else if (eventType === "session.error") {
+        notify("error", projectName);
+        lastResponseText = "";
+      }
+    },
+
+    "permission.ask": async () => {
+      notify("permission", projectName);
+    }
+  };
+};
+
+export default AiNotifierPlugin;
+PLUGIN_EOF
+    echo "   ✓ OpenCode"
+else
+    echo "   - OpenCode (미설치)"
 fi
 
 # ===========================================

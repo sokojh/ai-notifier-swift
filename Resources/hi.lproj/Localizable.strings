@@ -1,0 +1,78 @@
+/* Hindi */
+
+/* MARK: - Notification Subtitles */
+"notification.subtitle.complete" = "प्रतिक्रिया पूर्ण";
+"notification.subtitle.input_waiting" = "इनपुट की प्रतीक्षा";
+"notification.subtitle.permission_request" = "अनुमति अनुरोध";
+"notification.subtitle.permission_needed" = "अनुमति आवश्यक";
+"notification.subtitle.notification" = "सूचना";
+"notification.subtitle.error" = "त्रुटि हुई";
+
+/* MARK: - Notification Body */
+"notification.body.check_response" = "प्रतिक्रिया देखें";
+"notification.body.waiting_for_input" = "उपयोगकर्ता इनपुट की प्रतीक्षा हो रही है";
+"notification.body.permission_required" = "अनुमति स्वीकृति आवश्यक है";
+"notification.body.status_changed" = "स्थिति बदल गई है";
+"notification.body.task_complete" = "कार्य पूर्ण";
+"notification.body.session_error" = "सत्र में त्रुटि हुई";
+"notification.body.approval_needed" = "स्वीकृति आवश्यक है";
+
+/* MARK: - Menu */
+"menu.settings" = "सेटिंग्स...";
+"menu.quit" = "बंद करें";
+
+/* MARK: - Settings Window */
+"settings.window_title" = "AI Notifier सेटिंग्स";
+"settings.ntfy_header" = "ntfy पुश सूचनाएं";
+"settings.enable_ntfy" = "ntfy पुश सूचनाएं सक्षम करें";
+"settings.server" = "सर्वर:";
+"settings.topic" = "विषय:";
+"settings.test" = "परीक्षण";
+"settings.testing" = "परीक्षण हो रहा है...";
+"settings.connection_success" = "कनेक्शन सफल!";
+"settings.ntfy_info" = "ntfy वैकल्पिक है। मोबाइल उपकरणों पर सूचनाएं प्राप्त करने के लिए सक्षम करें।";
+
+/* MARK: - Buttons */
+"button.save" = "सहेजें";
+"button.cancel" = "रद्द करें";
+"button.ok" = "ठीक है";
+"button.open_settings" = "सेटिंग्स खोलें";
+"button.close" = "बंद करें";
+
+/* MARK: - Alerts */
+"alert.settings_saved" = "सेटिंग्स सहेजी गईं";
+"alert.settings_save_failed" = "सेटिंग्स सहेजने में विफल";
+"alert.ntfy_enabled" = "ntfy सूचनाएं सक्षम की गई हैं।";
+"alert.ntfy_disabled" = "ntfy सूचनाएं अक्षम की गई हैं।";
+
+/* MARK: - Ntfy Errors */
+"ntfy.error.invalid_url" = "अमान्य सर्वर URL।";
+"ntfy.error.timeout" = "सर्वर कनेक्शन समय समाप्त।";
+"ntfy.error.network" = "नेटवर्क त्रुटि: %@";
+"ntfy.error.invalid_response" = "सर्वर प्रतिक्रिया संसाधित नहीं हो सकी।";
+"ntfy.error.unauthorized" = "इस विषय के लिए प्रमाणीकरण आवश्यक है।";
+"ntfy.error.topic_not_found" = "विषय नहीं मिला।";
+"ntfy.error.server" = "सर्वर त्रुटि (%d)";
+"ntfy.error.enter_server_url" = "कृपया सर्वर URL दर्ज करें";
+"ntfy.error.enter_topic" = "कृपया विषय दर्ज करें";
+
+/* MARK: - Ntfy Test */
+"ntfy.test.title" = "AI Notifier परीक्षण";
+"ntfy.test.success_message" = "ntfy कनेक्शन परीक्षण सफल! 🎉";
+
+/* MARK: - Setup */
+"setup.preparing" = "सेटअप तैयार हो रहा है...";
+"setup.installing_hooks" = "CLI हुक स्थापित हो रहे हैं...";
+"setup.complete" = "AI Notifier सेटअप पूर्ण";
+"setup.permission_required" = "सूचना अनुमति आवश्यक है।\n\nसिस्टम सेटिंग्स > सूचनाएं > AI Notifier में जाएं और 'सूचनाएं अनुमति दें' सक्षम करें।";
+"setup.permission_enabled" = "सूचना अनुमति: सक्षम";
+"setup.cli_hook_settings" = "CLI हुक सेटिंग्स:";
+"setup.success_message" = "अब आप CLI प्रतिक्रिया पूर्ण होने पर सूचनाएं प्राप्त करेंगे!";
+"setup.no_cli_installed" = "कोई CLI स्थापित नहीं है। कृपया Claude Code, Gemini CLI, Codex CLI, या OpenCode स्थापित करें और फिर से चलाएं।";
+"setup.ntfy_tip" = "💡 आप मेनू बार में 🔔 आइकन से ntfy पुश सूचनाएं कॉन्फ़िगर कर सकते हैं।";
+
+/* MARK: - Hook Installation Results */
+"hook.result.installed" = "हुक स्थापित";
+"hook.result.already_installed" = "पहले से कॉन्फ़िगर";
+"hook.result.not_found" = "स्थापित नहीं (छोड़ा गया)";
+"hook.result.error" = "त्रुटि - %@";

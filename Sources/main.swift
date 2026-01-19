@@ -2,6 +2,34 @@ import Foundation
 import AppKit
 import Darwin
 
+// MARK: - Background Mode
+
+/// Run app in background with menu bar icon only
+func runBackgroundMode() {
+    // Check if another instance is already running
+    if ProcessManager.isAnotherInstanceRunning() {
+        debugLog("Another instance already running, exiting")
+        return
+    }
+
+    debugLog("Starting background mode with menu bar icon")
+
+    // Write PID file and setup cleanup
+    ProcessManager.writePIDFile()
+    ProcessManager.setupCleanup()
+
+    let app = NSApplication.shared
+    app.setActivationPolicy(.accessory)  // Hide from dock
+
+    // Setup status bar icon
+    StatusBarController.shared.setup()
+
+    // Setup notification delegate for click handling
+    _ = NotificationManager.shared
+
+    app.run()
+}
+
 // MARK: - Main Entry Point
 
 func main() {
@@ -32,7 +60,9 @@ func main() {
         if arg.hasPrefix("ai-notifier://") {
             debugLog("=== URL scheme activation ===")
             AppController.handleURLScheme(arg)
-            exit(0)
+            // Don't exit - keep running for potential future activations
+            runBackgroundMode()
+            return
         }
     }
 
@@ -62,7 +92,9 @@ func main() {
 
         // Check for saved session file (notification click)
         if AppController.handleSavedSession() {
-            exit(0)
+            // Don't exit - keep running in background
+            runBackgroundMode()
+            return
         }
 
         // Check if launched directly (TTY) - user double-clicked the app

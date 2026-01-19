@@ -157,19 +157,42 @@ struct AppController {
 
     /// Send notification and keep app running for click handling
     static func sendNotificationAndRun(content: NotificationContent) {
+        // Check if another instance is already running
+        let isFirstInstance = !ProcessManager.isAnotherInstanceRunning()
+
         // Send notification
         NotificationManager.shared.sendNotification(content: content) { success in
             debugLog("Notification sent: \(success ? "success" : "failed")")
+
+            // If another instance is running, exit after sending notification
+            if !isFirstInstance {
+                debugLog("Another instance is running, exiting after notification sent")
+                // Small delay to ensure notification is delivered
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    exit(0)
+                }
+            }
         }
 
-        // Keep app running in background to handle notification clicks
-        debugLog("Starting background run loop for notification click handling...")
-        let app = NSApplication.shared
-        app.setActivationPolicy(.accessory)  // Hide from dock
+        // Only the first instance should run in background
+        if isFirstInstance {
+            debugLog("First instance - starting background run loop")
 
-        // Setup status bar icon with settings menu
-        StatusBarController.shared.setup()
+            // Write PID file and setup cleanup
+            ProcessManager.writePIDFile()
+            ProcessManager.setupCleanup()
 
-        app.run()
+            let app = NSApplication.shared
+            app.setActivationPolicy(.accessory)  // Hide from dock
+
+            // Setup status bar icon with settings menu
+            StatusBarController.shared.setup()
+
+            app.run()
+        } else {
+            // Wait for notification to be sent, then exit
+            debugLog("Not first instance - waiting for notification then exit")
+            RunLoop.main.run(until: Date(timeIntervalSinceNow: 2))
+        }
     }
 }

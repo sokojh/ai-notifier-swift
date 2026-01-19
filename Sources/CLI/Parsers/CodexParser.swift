@@ -10,19 +10,19 @@ struct CodexParser {
             let response = extractResponse(from: data)
             return NotificationContent(
                 title: title,
-                subtitle: "응답 완료",
-                body: response.isEmpty ? "응답을 확인하세요" : response,
+                subtitle: L10n.Notification.Subtitle.complete,
+                body: response.isEmpty ? L10n.Notification.Body.checkResponse : response,
                 cli: cli,
                 terminalInfo: terminalInfo
             )
         }
 
         if eventType == "approval-requested" {
-            let message = data["message"] as? String
+            // Always use localized message for consistent UI
             return NotificationContent(
                 title: title,
-                subtitle: "권한 요청",
-                body: message ?? "권한 승인이 필요합니다",
+                subtitle: L10n.Notification.Subtitle.permissionRequest,
+                body: L10n.Notification.Body.permissionRequired,
                 cli: cli,
                 terminalInfo: terminalInfo
             )
@@ -32,8 +32,8 @@ struct CodexParser {
         let response = extractResponse(from: data)
         return NotificationContent(
             title: title,
-            subtitle: eventType.isEmpty ? "알림" : eventType,
-            body: response.isEmpty ? "상태가 변경되었습니다" : response,
+            subtitle: eventType.isEmpty ? L10n.Notification.Subtitle.notification : eventType,
+            body: response.isEmpty ? L10n.Notification.Body.statusChanged : response,
             cli: cli,
             terminalInfo: terminalInfo
         )
