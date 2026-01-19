@@ -152,35 +152,76 @@ func runSetupMode() {
 }
 
 func installHooksAndShowResult() {
-    // Step 2: Install CLI hooks
-    let results = CLIHookInstaller.installAllHooks()
+    // Show loading window during hook installation
+    let loadingWindow = createLoadingWindow(message: "CLI 훅 설치 중...")
 
-    // Build result message
-    var messages: [String] = []
-    messages.append(CLIHookInstaller.resultToString(results.claude, cliName: "Claude Code"))
-    messages.append(CLIHookInstaller.resultToString(results.gemini, cliName: "Gemini CLI"))
-    messages.append(CLIHookInstaller.resultToString(results.codex, cliName: "Codex CLI"))
-    messages.append(CLIHookInstaller.resultToString(results.opencode, cliName: "OpenCode"))
+    // Install hooks in background thread to avoid UI blocking
+    DispatchQueue.global(qos: .userInitiated).async {
+        let results = CLIHookInstaller.installAllHooks()
 
-    // Count installed
-    let installedCount = [results.claude, results.gemini, results.codex, results.opencode].filter {
-        if case .installed = $0 { return true }
-        if case .alreadyInstalled = $0 { return true }
-        return false
-    }.count
+        // Build result message
+        var messages: [String] = []
+        messages.append(CLIHookInstaller.resultToString(results.claude, cliName: "Claude Code"))
+        messages.append(CLIHookInstaller.resultToString(results.gemini, cliName: "Gemini CLI"))
+        messages.append(CLIHookInstaller.resultToString(results.codex, cliName: "Codex CLI"))
+        messages.append(CLIHookInstaller.resultToString(results.opencode, cliName: "OpenCode"))
 
-    let alert = NSAlert()
-    alert.messageText = "AI Notifier 설정 완료"
+        // Count installed
+        let installedCount = [results.claude, results.gemini, results.codex, results.opencode].filter {
+            if case .installed = $0 { return true }
+            if case .alreadyInstalled = $0 { return true }
+            return false
+        }.count
 
-    if installedCount > 0 {
-        alert.informativeText = "알림 권한: 활성화됨\n\nCLI 훅 설정:\n• \(messages.joined(separator: "\n• "))\n\n이제 CLI 응답 완료 시 알림을 받을 수 있습니다!\n\n💡 메뉴바 🔔 아이콘에서 ntfy 푸시 알림을 설정할 수 있습니다."
-        alert.alertStyle = .informational
-    } else {
-        alert.informativeText = "알림 권한: 활성화됨\n\nCLI 훅 설정:\n• \(messages.joined(separator: "\n• "))\n\n설치된 CLI가 없습니다. Claude Code, Gemini CLI, Codex CLI, 또는 OpenCode를 설치한 후 다시 실행해주세요.\n\n💡 메뉴바 🔔 아이콘에서 ntfy 푸시 알림을 설정할 수 있습니다."
-        alert.alertStyle = .warning
+        // Show result on main thread
+        DispatchQueue.main.async {
+            loadingWindow.close()
+
+            let alert = NSAlert()
+            alert.messageText = "AI Notifier 설정 완료"
+
+            if installedCount > 0 {
+                alert.informativeText = "알림 권한: 활성화됨\n\nCLI 훅 설정:\n• \(messages.joined(separator: "\n• "))\n\n이제 CLI 응답 완료 시 알림을 받을 수 있습니다!\n\n💡 메뉴바 🔔 아이콘에서 ntfy 푸시 알림을 설정할 수 있습니다."
+                alert.alertStyle = .informational
+            } else {
+                alert.informativeText = "알림 권한: 활성화됨\n\nCLI 훅 설정:\n• \(messages.joined(separator: "\n• "))\n\n설치된 CLI가 없습니다. Claude Code, Gemini CLI, Codex CLI, 또는 OpenCode를 설치한 후 다시 실행해주세요.\n\n💡 메뉴바 🔔 아이콘에서 ntfy 푸시 알림을 설정할 수 있습니다."
+                alert.alertStyle = .warning
+            }
+
+            alert.addButton(withTitle: "확인")
+            alert.runModal()
+            exit(0)
+        }
     }
+}
 
-    alert.addButton(withTitle: "확인")
-    alert.runModal()
-    exit(0)
+func createLoadingWindow(message: String) -> NSWindow {
+    let windowRect = NSRect(x: 0, y: 0, width: 280, height: 100)
+    let window = NSWindow(
+        contentRect: windowRect,
+        styleMask: [.titled],
+        backing: .buffered,
+        defer: false
+    )
+    window.title = "AI Notifier"
+    window.center()
+    window.isReleasedWhenClosed = false
+
+    let contentView = NSView(frame: windowRect)
+
+    let indicator = NSProgressIndicator(frame: NSRect(x: 120, y: 50, width: 40, height: 40))
+    indicator.style = .spinning
+    indicator.startAnimation(nil)
+    contentView.addSubview(indicator)
+
+    let label = NSTextField(labelWithString: message)
+    label.frame = NSRect(x: 0, y: 15, width: 280, height: 20)
+    label.alignment = .center
+    label.font = NSFont.systemFont(ofSize: 13)
+    contentView.addSubview(label)
+
+    window.contentView = contentView
+    window.makeKeyAndOrderFront(nil)
+
+    return window
 }
