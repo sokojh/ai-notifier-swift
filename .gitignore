@@ -18,3 +18,6 @@ DerivedData/
 Package.resolved
 build/
 ai-notifier.dmg
+
+# Claude Code local settings
+.claude/settings.local.json
