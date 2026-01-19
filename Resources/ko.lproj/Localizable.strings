@@ -2,7 +2,6 @@
 
 /* MARK: - Notification Subtitles */
 "notification.subtitle.complete" = "응답 완료";
-"notification.subtitle.input_waiting" = "입력 대기";
 "notification.subtitle.permission_request" = "권한 요청";
 "notification.subtitle.permission_needed" = "권한 필요";
 "notification.subtitle.notification" = "알림";
@@ -10,7 +9,6 @@
 
 /* MARK: - Notification Body */
 "notification.body.check_response" = "응답을 확인하세요";
-"notification.body.waiting_for_input" = "사용자 입력을 기다리고 있습니다";
 "notification.body.permission_required" = "권한 승인이 필요합니다";
 "notification.body.status_changed" = "상태가 변경되었습니다";
 "notification.body.task_complete" = "작업이 완료되었습니다";

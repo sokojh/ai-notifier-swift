@@ -2,7 +2,6 @@
 
 /* MARK: - Notification Subtitles */
 "notification.subtitle.complete" = "响应完成";
-"notification.subtitle.input_waiting" = "等待输入";
 "notification.subtitle.permission_request" = "权限请求";
 "notification.subtitle.permission_needed" = "需要权限";
 "notification.subtitle.notification" = "通知";
@@ -10,7 +9,6 @@
 
 /* MARK: - Notification Body */
 "notification.body.check_response" = "请查看响应";
-"notification.body.waiting_for_input" = "正在等待用户输入";
 "notification.body.permission_required" = "需要权限批准";
 "notification.body.status_changed" = "状态已更改";
 "notification.body.task_complete" = "任务已完成";

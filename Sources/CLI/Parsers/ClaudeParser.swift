@@ -20,16 +20,11 @@ struct ClaudeParser {
             )
         }
 
-        // Notification event
+        // Notification event (only permission_prompt)
         if hookName == "Notification" {
+            // Skip idle_prompt - too frequent and unnecessary
             if notificationType == "idle_prompt" {
-                return NotificationContent(
-                    title: title,
-                    subtitle: L10n.Notification.Subtitle.inputWaiting,
-                    body: L10n.Notification.Body.waitingForInput,
-                    cli: cli,
-                    terminalInfo: terminalInfo
-                )
+                return nil
             }
 
             if notificationType == "permission_prompt" {

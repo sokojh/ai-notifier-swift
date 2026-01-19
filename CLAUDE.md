@@ -298,7 +298,7 @@ let isHookMode = hasStdinData || hasArgvData
 
 | CLI | 특이사항 |
 |-----|---------|
-| **Claude** | `hook_event_name`: Stop, Notification / `notification_type`: idle_prompt, permission_prompt |
+| **Claude** | `hook_event_name`: Stop, Notification / `notification_type`: permission_prompt (idle_prompt is ignored) |
 | **Gemini** | 스트리밍 응답마다 hook 호출 → 디바운싱 필수 (`finishReason == "STOP"` 체크) |
 | **Codex** | TOML 설정 파일 사용, **`notify`는 루트 레벨**에 설정 (⚠️ `[notice]` 섹션 아님!) |
 | **OpenCode** | **플러그인 방식** - `@opencode-ai/plugin` SDK 사용. `~/.config/opencode/plugin/`에 배치. 이벤트: `session.idle`→complete, `session.error`→error, `permission.ask`→permission. 참고: [opencode-notifier](https://github.com/mohak34/opencode-notifier) |

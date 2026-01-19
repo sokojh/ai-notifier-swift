@@ -2,7 +2,6 @@
 
 /* MARK: - Notification Subtitles */
 "notification.subtitle.complete" = "प्रतिक्रिया पूर्ण";
-"notification.subtitle.input_waiting" = "इनपुट की प्रतीक्षा";
 "notification.subtitle.permission_request" = "अनुमति अनुरोध";
 "notification.subtitle.permission_needed" = "अनुमति आवश्यक";
 "notification.subtitle.notification" = "सूचना";
@@ -10,7 +9,6 @@
 
 /* MARK: - Notification Body */
 "notification.body.check_response" = "प्रतिक्रिया देखें";
-"notification.body.waiting_for_input" = "उपयोगकर्ता इनपुट की प्रतीक्षा हो रही है";
 "notification.body.permission_required" = "अनुमति स्वीकृति आवश्यक है";
 "notification.body.status_changed" = "स्थिति बदल गई है";
 "notification.body.task_complete" = "कार्य पूर्ण";

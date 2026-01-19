@@ -1,40 +1,40 @@
 # AI Notifier
 
-AI 코딩 어시스턴트(Claude Code, Gemini CLI, Codex CLI, OpenCode)를 위한 네이티브 macOS 알림 앱
+Native macOS notification app for AI coding assistants (Claude Code, Gemini CLI, Codex CLI, OpenCode)
 
-Swift로 작성되어 `UNUserNotificationCenter` API를 사용하며, macOS Sequoia와 Tahoe를 포함한 모든 최신 macOS 버전과 완벽 호환됩니다.
+Built with Swift using the `UNUserNotificationCenter` API, fully compatible with all recent macOS versions including Sequoia and Tahoe.
 
-## 주요 기능
+## Key Features
 
-**네이티브 Swift 앱**
-- 외부 의존성 없음 (terminal-notifier, Node.js 불필요)
-- Universal Binary (Intel + Apple Silicon 지원)
-- 최신 macOS 알림 API 사용
+**Native Swift App**
+- No external dependencies (no terminal-notifier, Node.js required)
+- Universal Binary (Intel + Apple Silicon)
+- Uses modern macOS notification API
 
-**Multi-CLI 지원**
-- Claude Code, Gemini CLI, Codex CLI 자동 감지
-- CLI별 아이콘 표시
-- 응답 완료, 권한 요청, 입력 대기 등 상태별 알림
+**Multi-CLI Support**
+- Auto-detects Claude Code, Gemini CLI, Codex CLI, OpenCode
+- CLI-specific icons
+- Notifications for response completion and permission requests
 
 **Click-to-Focus**
-- 알림 클릭 시 해당 터미널로 자동 이동
-- iTerm2, Terminal.app, VSCode, Kitty 등 주요 터미널 지원
-- 정확한 탭/세션 선택 (터미널별 지원 수준 상이)
+- Click notification to jump to the terminal
+- Supports iTerm2, Terminal.app, VSCode, Kitty, and more
+- Precise tab/session selection (varies by terminal)
 
-**ntfy 연동** (선택)
-- [ntfy.sh](https://ntfy.sh)를 통한 모바일 푸시 알림
-- Self-hosted ntfy 서버 지원 (Bearer/Basic 인증)
+**ntfy Integration** (optional)
+- Mobile push notifications via [ntfy.sh](https://ntfy.sh)
+- Self-hosted ntfy server support (Bearer/Basic auth)
 
-**다국어 지원**
-- 8개 언어 지원: 영어, 한국어, 일본어, 중국어(간체), 스페인어, 독일어, 러시아어, 힌디어
-- macOS 시스템 언어 설정에 따라 자동 선택
-- 영어가 기본/fallback 언어
+**Multi-language Support**
+- 8 languages: English, Korean, Japanese, Chinese (Simplified), Spanish, German, Russian, Hindi
+- Auto-selects based on macOS system language
+- English is the default/fallback language
 
 ---
 
-## 설치
+## Installation
 
-### 원라이너 설치 (권장)
+### One-liner Install (Recommended)
 
 ```bash
 rm -rf /tmp/ai-notifier-swift && \
@@ -42,13 +42,13 @@ git clone https://github.com/sokojh/ai-notifier-swift.git /tmp/ai-notifier-swift
 /tmp/ai-notifier-swift/install.sh
 ```
 
-설치 스크립트가 자동으로:
-1. Swift 앱 빌드 (Universal Binary)
-2. `/Applications/ai-notifier.app` 설치
-3. Claude Code, Gemini CLI, Codex CLI, OpenCode 훅 자동 설정
-4. 알림 권한 요청
+The install script automatically:
+1. Builds the Swift app (Universal Binary)
+2. Installs to `/Applications/ai-notifier.app`
+3. Configures hooks for Claude Code, Gemini CLI, Codex CLI, OpenCode
+4. Requests notification permissions
 
-### 수동 설치
+### Manual Installation
 
 ```bash
 git clone https://github.com/sokojh/ai-notifier-swift.git
@@ -57,53 +57,53 @@ cd ai-notifier-swift
 cp -r .build/ai-notifier.app /Applications/
 codesign --force --deep --sign - /Applications/ai-notifier.app
 
-# 설정 마법사 실행 (권한 요청 + 훅 설치)
+# Run setup wizard (permissions + hook installation)
 /Applications/ai-notifier.app/Contents/MacOS/ai-notifier --setup
 ```
 
 ---
 
-## 알림 권한 설정
+## Notification Permissions
 
-설치 후 **시스템 설정 → 알림 → AI Notifier**에서:
+After installation, go to **System Settings → Notifications → AI Notifier**:
 
-1. **알림 허용** 활성화
-2. 알림 스타일을 **알림**(Alerts)으로 설정 (배너보다 권장)
+1. Enable **Allow Notifications**
+2. Set notification style to **Alerts** (recommended over Banners)
 
 ---
 
-## 터미널 지원
+## Terminal Support
 
-### 완벽 지원 (탭/세션 선택 가능)
+### Full Support (Tab/Session Selection)
 
-| 터미널 | 방식 | 비고 |
-|--------|------|------|
-| **iTerm2** | `ITERM_SESSION_ID` (UUID) | 정확한 세션으로 이동 |
-| **Terminal.app** | TTY 매칭 | 정확한 탭으로 이동 |
+| Terminal | Method | Notes |
+|----------|--------|-------|
+| **iTerm2** | `ITERM_SESSION_ID` (UUID) | Jumps to exact session |
+| **Terminal.app** | TTY matching | Jumps to exact tab |
 
-### 부분 지원 (창 활성화)
+### Partial Support (Window Activation)
 
-| 터미널 | 방식 | 비고 |
-|--------|------|------|
-| **VSCode** | `code` CLI | 폴더 창 활성화 (내부 터미널 탭 선택 불가) |
-| **Kitty** | `kitten @` | 창 ID로 포커스 → **원격 제어 설정 필요** |
-| **Ghostty** | AppleScript | 앱만 활성화 (세션 API 미지원) |
-| **Warp** | AppleScript | 앱만 활성화 (탭 선택 불가) |
+| Terminal | Method | Notes |
+|----------|--------|-------|
+| **VSCode** | `code` CLI | Activates folder window (cannot select internal terminal tab) |
+| **Kitty** | `kitten @` | Focus by window ID → **Requires remote control setting** |
+| **Ghostty** | AppleScript | App activation only (no session API) |
+| **Warp** | AppleScript | App activation only (cannot select tab) |
 
-### 추가 설정이 필요한 터미널
+### Additional Setup Required
 
-**Kitty**: `~/.config/kitty/kitty.conf`에 추가:
+**Kitty**: Add to `~/.config/kitty/kitty.conf`:
 ```
 allow_remote_control yes
 ```
 
 ---
 
-## ntfy 연동 (선택)
+## ntfy Integration (Optional)
 
-모바일이나 다른 기기에서도 알림을 받을 수 있습니다.
+Receive notifications on mobile or other devices.
 
-### 설정
+### Configuration
 
 ```bash
 mkdir -p ~/.config/ai-notifier
@@ -119,19 +119,19 @@ cat > ~/.config/ai-notifier/config.json << 'EOF'
 EOF
 ```
 
-### 설정 옵션
+### Configuration Options
 
-| 옵션 | 설명 | 기본값 |
-|------|------|--------|
-| `enabled` | ntfy 활성화 여부 | `false` |
-| `server` | ntfy 서버 URL | `https://ntfy.sh` |
-| `topic` | 알림을 받을 토픽 이름 (필수) | - |
-| `priority` | 우선순위 (`min`, `low`, `default`, `high`, `urgent`) | `default` |
-| `auth` | 인증 정보 (선택) | `null` |
+| Option | Description | Default |
+|--------|-------------|---------|
+| `enabled` | Enable ntfy | `false` |
+| `server` | ntfy server URL | `https://ntfy.sh` |
+| `topic` | Topic name for notifications (required) | - |
+| `priority` | Priority (`min`, `low`, `default`, `high`, `urgent`) | `default` |
+| `auth` | Authentication info (optional) | `null` |
 
-### Self-hosted ntfy 인증
+### Self-hosted ntfy Authentication
 
-**Bearer 토큰:**
+**Bearer Token:**
 ```json
 {
   "ntfy": {
@@ -143,7 +143,7 @@ EOF
 }
 ```
 
-**Basic 인증:**
+**Basic Auth:**
 ```json
 {
   "ntfy": {
@@ -155,17 +155,17 @@ EOF
 }
 ```
 
-### 모바일 앱
+### Mobile App
 
-1. [ntfy 앱](https://ntfy.sh/#subscribe-phone) 설치 (iOS/Android)
-2. 설정한 토픽 구독
-3. AI 응답 완료 시 모바일에서도 알림 수신
+1. Install [ntfy app](https://ntfy.sh/#subscribe-phone) (iOS/Android)
+2. Subscribe to your configured topic
+3. Receive notifications on mobile when AI responses complete
 
 ---
 
-## CLI 훅 설정 (수동)
+## CLI Hook Configuration (Manual)
 
-`install.sh` 또는 `--setup` 사용 시 자동 설정됩니다. 수동 설정이 필요한 경우:
+Hooks are automatically configured when using `install.sh` or `--setup`. For manual configuration:
 
 <details>
 <summary><strong>Claude Code</strong></summary>
@@ -175,7 +175,7 @@ EOF
 {
   "hooks": {
     "Stop": [{"matcher": "", "hooks": [{"type": "command", "command": "/Applications/ai-notifier.app/Contents/MacOS/ai-notifier"}]}],
-    "Notification": [{"matcher": "", "hooks": [{"type": "command", "command": "/Applications/ai-notifier.app/Contents/MacOS/ai-notifier"}]}]
+    "Notification": [{"matcher": "permission_prompt", "hooks": [{"type": "command", "command": "/Applications/ai-notifier.app/Contents/MacOS/ai-notifier"}]}]
   }
 }
 ```
@@ -199,12 +199,12 @@ EOF
 <details>
 <summary><strong>Codex CLI</strong></summary>
 
-`~/.codex/config.toml` (⚠️ `notify`는 반드시 **루트 레벨**에 위치해야 함!):
+`~/.codex/config.toml` (Note: `notify` must be at **root level**!):
 ```toml
-# 루트 레벨에 배치 (중요!)
+# Place at root level (important!)
 notify = ["/Applications/ai-notifier.app/Contents/MacOS/ai-notifier"]
 
-# [notice] 섹션은 별개 용도 (in-product notices 설정)
+# [notice] section is for different purpose (in-product notices)
 [notice]
 hide_gpt5_1_migration_prompt = true
 ```
@@ -213,9 +213,9 @@ hide_gpt5_1_migration_prompt = true
 <details>
 <summary><strong>OpenCode</strong></summary>
 
-OpenCode는 `@opencode-ai/plugin` SDK 기반 플러그인 방식으로 동작합니다. `--setup` 실행 시 자동 설치됩니다.
+OpenCode uses `@opencode-ai/plugin` SDK-based plugin system. Auto-installed when running `--setup`.
 
-**플러그인 위치:** `~/.config/opencode/plugin/ai-notifier.ts`
+**Plugin location:** `~/.config/opencode/plugin/ai-notifier.ts`
 
 ```typescript
 import type { Plugin } from "@opencode-ai/plugin";
@@ -276,107 +276,107 @@ export const AiNotifierPlugin: Plugin = async ({ directory }) => {
 export default AiNotifierPlugin;
 ```
 
-**지원 이벤트:**
-- `session.idle` → 응답 완료 알림
-- `session.error` → 오류 발생 알림
-- `permission.ask` → 권한 요청 알림
+**Supported events:**
+- `session.idle` → Response complete notification
+- `session.error` → Error notification
+- `permission.ask` → Permission request notification
 </details>
 
 ---
 
-## 동작 방식
+## How It Works
 
-### 알림 흐름
-
-```
-CLI 응답 완료 → Hook 실행 → ai-notifier 호출 →
-  ├─ macOS 알림 표시
-  └─ ntfy 전송 (설정 시)
-```
-
-### 알림 클릭 흐름
+### Notification Flow
 
 ```
-알림 클릭 → ai-notifier 재실행 →
-  터미널 정보 복원 → 해당 터미널/세션 활성화
+CLI response complete → Hook executed → ai-notifier called →
+  ├─ Display macOS notification
+  └─ Send to ntfy (if configured)
 ```
 
-### Gemini CLI 디바운싱
+### Click-to-Focus Flow
 
-Gemini CLI는 스트리밍 응답마다 훅을 호출하므로 자동 디바운싱:
-- `finishReason == "STOP"` 인 경우에만 알림
-- 세션별 2초 디바운싱으로 중복 알림 방지
+```
+Click notification → ai-notifier relaunched →
+  Restore terminal info → Activate terminal/session
+```
+
+### Gemini CLI Debouncing
+
+Gemini CLI calls hooks for every streaming response, so automatic debouncing is applied:
+- Only notifies when `finishReason == "STOP"`
+- 2-second per-session debouncing prevents duplicate notifications
 
 ---
 
-## 테스트
+## Testing
 
 ```bash
-# 기본 알림 테스트
+# Basic notification test
 echo '{"hook_event_name":"Stop","cwd":"/tmp/test"}' | \
   /Applications/ai-notifier.app/Contents/MacOS/ai-notifier
 
-# 디버그 로그 확인
+# View debug logs
 tail -f /tmp/ai-notifier-debug.log
 ```
 
 ---
 
-## 다국어 지원 (Internationalization)
+## Internationalization
 
-macOS 시스템 언어 설정에 따라 알림 및 UI가 자동으로 해당 언어로 표시됩니다.
+Notifications and UI automatically display in the appropriate language based on macOS system language settings.
 
-### 지원 언어
+### Supported Languages
 
-| 언어 | 코드 | 상태 |
-|------|------|------|
-| English | en | 기본 (fallback) |
-| 한국어 | ko | ✅ |
-| 日本語 | ja | ✅ |
-| 简体中文 | zh-Hans | ✅ |
-| Español | es | ✅ |
-| Deutsch | de | ✅ |
-| Русский | ru | ✅ |
-| हिन्दी | hi | ✅ |
+| Language | Code | Status |
+|----------|------|--------|
+| English | en | Default (fallback) |
+| Korean | ko | Supported |
+| Japanese | ja | Supported |
+| Chinese (Simplified) | zh-Hans | Supported |
+| Spanish | es | Supported |
+| German | de | Supported |
+| Russian | ru | Supported |
+| Hindi | hi | Supported |
 
-### 언어 변경 방법
+### Changing Language
 
-시스템 설정 → 일반 → 언어 및 지역 → 선호하는 언어 순서 변경
+System Settings → General → Language & Region → Change preferred language order
 
-### 새 언어 추가 (개발자용)
+### Adding New Languages (for developers)
 
-1. `Resources/{lang-code}.lproj/Localizable.strings` 생성
-2. `ko.lproj/Localizable.strings`의 키를 복사하여 번역
-3. `build.sh`의 `CFBundleLocalizations` 배열에 언어 코드 추가
-4. 빌드 후 테스트
+1. Create `Resources/{lang-code}.lproj/Localizable.strings`
+2. Copy keys from `en.lproj/Localizable.strings` and translate
+3. Add language code to `CFBundleLocalizations` array in `build.sh`
+4. Build and test
 
 ---
 
-## 기술 사양
+## Technical Specifications
 
-| 항목 | 값 |
-|------|-----|
-| 언어 | Swift 5+ |
-| 최소 macOS | 11.0 (Big Sur) |
-| 알림 API | `UNUserNotificationCenter` |
-| 아키텍처 | Universal Binary (arm64 + x86_64) |
-| 코드 서명 | Ad-hoc (로컬 빌드) |
+| Item | Value |
+|------|-------|
+| Language | Swift 5+ |
+| Minimum macOS | 11.0 (Big Sur) |
+| Notification API | `UNUserNotificationCenter` |
+| Architecture | Universal Binary (arm64 + x86_64) |
+| Code Signing | Ad-hoc (local build) |
 | Bundle ID | `com.sokojh.ai-notifier` |
 
 ---
 
-## 왜 네이티브 Swift인가?
+## Why Native Swift?
 
-| 도구 | 문제점 |
-|------|--------|
-| terminal-notifier | deprecated `NSUserNotification` API, 최신 macOS 미지원 |
-| alerter | 동일한 API 문제 |
-| osascript | Sequoia에서 터미널 `display notification` 미작동 |
+| Tool | Issue |
+|------|-------|
+| terminal-notifier | Deprecated `NSUserNotification` API, doesn't support latest macOS |
+| alerter | Same API issues |
+| osascript | Terminal `display notification` doesn't work on Sequoia |
 
-→ 최신 `UNUserNotificationCenter` API를 사용하는 네이티브 앱으로 해결
+→ Solved with a native app using modern `UNUserNotificationCenter` API
 
 ---
 
-## 라이선스
+## License
 
 MIT License

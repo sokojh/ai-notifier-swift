@@ -20,11 +20,9 @@ enum L10n {
 
     enum Notification {
         enum Subtitle {
-            /// "응답 완료"
+            /// "Response Complete"
             static var complete: String { localized("notification.subtitle.complete") }
-            /// "입력 대기"
-            static var inputWaiting: String { localized("notification.subtitle.input_waiting") }
-            /// "권한 요청"
+            /// "Permission Request"
             static var permissionRequest: String { localized("notification.subtitle.permission_request") }
             /// "권한 필요"
             static var permissionNeeded: String { localized("notification.subtitle.permission_needed") }
@@ -35,11 +33,9 @@ enum L10n {
         }
 
         enum Body {
-            /// "응답을 확인하세요"
+            /// "Please check the response"
             static var checkResponse: String { localized("notification.body.check_response") }
-            /// "사용자 입력을 기다리고 있습니다"
-            static var waitingForInput: String { localized("notification.body.waiting_for_input") }
-            /// "권한 승인이 필요합니다"
+            /// "Permission approval required"
             static var permissionRequired: String { localized("notification.body.permission_required") }
             /// "상태가 변경되었습니다"
             static var statusChanged: String { localized("notification.body.status_changed") }

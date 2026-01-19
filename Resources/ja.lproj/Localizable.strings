@@ -2,7 +2,6 @@
 
 /* MARK: - Notification Subtitles */
 "notification.subtitle.complete" = "応答完了";
-"notification.subtitle.input_waiting" = "入力待ち";
 "notification.subtitle.permission_request" = "権限リクエスト";
 "notification.subtitle.permission_needed" = "権限が必要";
 "notification.subtitle.notification" = "通知";
@@ -10,7 +9,6 @@
 
 /* MARK: - Notification Body */
 "notification.body.check_response" = "応答を確認してください";
-"notification.body.waiting_for_input" = "ユーザー入力を待っています";
 "notification.body.permission_required" = "権限の承認が必要です";
 "notification.body.status_changed" = "ステータスが変更されました";
 "notification.body.task_complete" = "タスクが完了しました";

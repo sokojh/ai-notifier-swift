@@ -2,7 +2,6 @@
 
 /* MARK: - Notification Subtitles */
 "notification.subtitle.complete" = "Ответ получен";
-"notification.subtitle.input_waiting" = "Ожидание ввода";
 "notification.subtitle.permission_request" = "Запрос разрешения";
 "notification.subtitle.permission_needed" = "Требуется разрешение";
 "notification.subtitle.notification" = "Уведомление";
@@ -10,7 +9,6 @@
 
 /* MARK: - Notification Body */
 "notification.body.check_response" = "Проверьте ответ";
-"notification.body.waiting_for_input" = "Ожидание ввода пользователя";
 "notification.body.permission_required" = "Требуется подтверждение разрешения";
 "notification.body.status_changed" = "Статус изменён";
 "notification.body.task_complete" = "Задача выполнена";

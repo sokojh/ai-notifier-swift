@@ -2,7 +2,6 @@
 
 /* MARK: - Notification Subtitles */
 "notification.subtitle.complete" = "Antwort abgeschlossen";
-"notification.subtitle.input_waiting" = "Warten auf Eingabe";
 "notification.subtitle.permission_request" = "Berechtigungsanfrage";
 "notification.subtitle.permission_needed" = "Berechtigung erforderlich";
 "notification.subtitle.notification" = "Benachrichtigung";
@@ -10,7 +9,6 @@
 
 /* MARK: - Notification Body */
 "notification.body.check_response" = "Antwort überprüfen";
-"notification.body.waiting_for_input" = "Warten auf Benutzereingabe";
 "notification.body.permission_required" = "Genehmigung erforderlich";
 "notification.body.status_changed" = "Status wurde geändert";
 "notification.body.task_complete" = "Aufgabe abgeschlossen";
