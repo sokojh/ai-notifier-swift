@@ -141,11 +141,7 @@ class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         }
 
         completionHandler()
-
-        // Exit after handling
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            exit(0)
-        }
+        // Keep running - don't exit after notification click
     }
 
     func userNotificationCenter(
