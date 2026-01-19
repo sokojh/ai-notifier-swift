@@ -41,13 +41,20 @@ cd "$SCRIPT_DIR"
 rm -rf "$BUILD_DIR"
 mkdir -p "$BUILD_DIR"
 
+# Find all Swift source files
+SWIFT_SOURCES=$(find Sources -name "*.swift" | sort)
+echo "Swift sources:"
+for src in $SWIFT_SOURCES; do
+    echo "   $src"
+done
+
 # ARM64 build
 echo ""
 echo -e "${BLUE}[1/5] Building ARM64...${NC}"
 swiftc -O \
     -target arm64-apple-macosx${MIN_MACOS} \
     -o "$BUILD_DIR/${EXECUTABLE_NAME}-arm64" \
-    Sources/main.swift
+    $SWIFT_SOURCES
 
 echo "ARM64 build complete"
 
@@ -57,7 +64,7 @@ echo -e "${BLUE}[2/5] Building x86_64...${NC}"
 swiftc -O \
     -target x86_64-apple-macosx${MIN_MACOS} \
     -o "$BUILD_DIR/${EXECUTABLE_NAME}-x86_64" \
-    Sources/main.swift
+    $SWIFT_SOURCES
 
 echo "x86_64 build complete"
 
