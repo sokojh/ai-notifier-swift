@@ -57,16 +57,13 @@ jobs:
       - name: Create DMG
         if: steps.check_release.outputs.exists == 'false'
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          DMG_NAME="AI-Notifier-${VERSION}.dmg"
-
           # Create staging directory
           mkdir -p dmg-staging
           cp -r .build/ai-notifier.app dmg-staging/
           ln -s /Applications dmg-staging/Applications
 
-          # Create DMG
-          hdiutil create -volname "AI Notifier" -srcfolder dmg-staging -ov -format UDZO "$DMG_NAME"
+          # Create DMG (version-less for /releases/latest/download/ compatibility)
+          hdiutil create -volname "AI Notifier" -srcfolder dmg-staging -ov -format UDZO "AI-Notifier.dmg"
 
           # Cleanup
           rm -rf dmg-staging
@@ -93,7 +90,7 @@ jobs:
           echo "## Installation" >> release_notes.md
           echo "" >> release_notes.md
           echo "### Option 1: DMG (Recommended)" >> release_notes.md
-          echo "1. Download \`AI-Notifier-${{ steps.version.outputs.version }}.dmg\`" >> release_notes.md
+          echo "1. Download \`AI-Notifier.dmg\`" >> release_notes.md
           echo "2. Open the DMG and drag \`ai-notifier.app\` to Applications" >> release_notes.md
           echo "3. Double-click to run and complete setup" >> release_notes.md
           echo "" >> release_notes.md
@@ -110,7 +107,7 @@ jobs:
           gh release create "v${{ steps.version.outputs.version }}" \
             --title "Release ${{ steps.version.outputs.version }}" \
             --notes-file release_notes.md \
-            "AI-Notifier-${{ steps.version.outputs.version }}.dmg" \
+            "AI-Notifier.dmg" \
             "ai-notifier-${{ steps.version.outputs.version }}.zip"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
