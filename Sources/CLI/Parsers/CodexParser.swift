@@ -24,7 +24,8 @@ struct CodexParser {
                 subtitle: L10n.Notification.Subtitle.permissionRequest,
                 body: L10n.Notification.Body.permissionRequired,
                 cli: cli,
-                terminalInfo: terminalInfo
+                terminalInfo: terminalInfo,
+                isPermissionRequest: true
             )
         }
 

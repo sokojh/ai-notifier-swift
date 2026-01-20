@@ -80,6 +80,10 @@
 "setup.no_cli_installed" = "Kein CLI installiert. Bitte installieren Sie Claude Code, Gemini CLI, Codex CLI oder OpenCode und führen Sie erneut aus.";
 "setup.ntfy_tip" = "💡 Sie können ntfy Push-Benachrichtigungen über das 🔔 Symbol in der Menüleiste konfigurieren.";
 
+/* MARK: - Notification Actions */
+"action.approve" = "Genehmigen";
+"action.deny" = "Ablehnen";
+
 /* MARK: - Hook Installation Results */
 "hook.result.installed" = "Hook installiert";
 "hook.result.already_installed" = "Bereits konfiguriert";

@@ -80,6 +80,10 @@
 "setup.no_cli_installed" = "कोई CLI स्थापित नहीं है। कृपया Claude Code, Gemini CLI, Codex CLI, या OpenCode स्थापित करें और फिर से चलाएं।";
 "setup.ntfy_tip" = "💡 आप मेनू बार में 🔔 आइकन से ntfy पुश सूचनाएं कॉन्फ़िगर कर सकते हैं।";
 
+/* MARK: - Notification Actions */
+"action.approve" = "स्वीकृत करें";
+"action.deny" = "अस्वीकार करें";
+
 /* MARK: - Hook Installation Results */
 "hook.result.installed" = "हुक स्थापित";
 "hook.result.already_installed" = "पहले से कॉन्फ़िगर";

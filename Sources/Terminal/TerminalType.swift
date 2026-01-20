@@ -22,6 +22,16 @@ enum TerminalType: String {
 
     case unknown = "unknown"
 
+    /// Whether this terminal supports programmatic text input via AppleScript
+    var supportsTextInput: Bool {
+        switch self {
+        case .iterm2, .terminal:
+            return true
+        default:
+            return false
+        }
+    }
+
     /// Detect terminal type from environment variables
     static func detect() -> TerminalType {
         let env = ProcessInfo.processInfo.environment

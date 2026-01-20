@@ -80,6 +80,10 @@
 "setup.no_cli_installed" = "未安装任何 CLI。请安装 Claude Code、Gemini CLI、Codex CLI 或 OpenCode 后重新运行。";
 "setup.ntfy_tip" = "💡 您可以从菜单栏 🔔 图标配置 ntfy 推送通知。";
 
+/* MARK: - Notification Actions */
+"action.approve" = "批准";
+"action.deny" = "拒绝";
+
 /* MARK: - Hook Installation Results */
 "hook.result.installed" = "钩子已安装";
 "hook.result.already_installed" = "已配置";

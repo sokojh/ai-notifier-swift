@@ -9,9 +9,39 @@ class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     private let center = UNUserNotificationCenter.current()
     var didHandleNotificationClick = false
 
+    // Action identifiers for permission request notifications
+    private static let approveActionIdentifier = "APPROVE_ACTION"
+    private static let denyActionIdentifier = "DENY_ACTION"
+    private static let permissionCategoryIdentifier = "PERMISSION_REQUEST"
+
     override init() {
         super.init()
         center.delegate = self
+        registerNotificationCategories()
+    }
+
+    /// Register notification categories with action buttons
+    private func registerNotificationCategories() {
+        let approveAction = UNNotificationAction(
+            identifier: Self.approveActionIdentifier,
+            title: L10n.Action.approve,
+            options: [.foreground]
+        )
+        let denyAction = UNNotificationAction(
+            identifier: Self.denyActionIdentifier,
+            title: L10n.Action.deny,
+            options: [.destructive]
+        )
+
+        let permissionCategory = UNNotificationCategory(
+            identifier: Self.permissionCategoryIdentifier,
+            actions: [approveAction, denyAction],
+            intentIdentifiers: [],
+            options: []
+        )
+
+        center.setNotificationCategories([permissionCategory])
+        debugLog("Registered notification categories with approve/deny actions")
     }
 
     func sendNotification(
@@ -79,6 +109,12 @@ class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         // Store terminal info in userInfo for click handling
         notificationContent.userInfo = content.terminalInfo.toDictionary()
 
+        // Set category for permission requests (shows approve/deny buttons)
+        if content.canShowActionButtons {
+            notificationContent.categoryIdentifier = Self.permissionCategoryIdentifier
+            debugLog("Setting permission category for notification (terminal supports text input)")
+        }
+
         // Add icon as attachment if available
         if let iconURL = getIconURL(for: content.cli) {
             let tempDir = FileManager.default.temporaryDirectory
@@ -117,14 +153,38 @@ class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
-        debugLog("Notification clicked! Action: \(response.actionIdentifier)")
+        debugLog("Notification action: \(response.actionIdentifier)")
         didHandleNotificationClick = true
 
-        // Handle notification click
         let userInfo = response.notification.request.content.userInfo
         debugLog("UserInfo: \(userInfo)")
 
-        // Extract terminal info from userInfo (handle [AnyHashable: Any] type)
+        // Extract terminal info from userInfo
+        let terminalInfo = extractTerminalInfo(from: userInfo)
+
+        switch response.actionIdentifier {
+        case Self.approveActionIdentifier:
+            handlePermissionResponse(approved: true, terminalInfo: terminalInfo)
+        case Self.denyActionIdentifier:
+            handlePermissionResponse(approved: false, terminalInfo: terminalInfo)
+        case UNNotificationDefaultActionIdentifier:
+            // Default click action - activate terminal
+            if let info = terminalInfo {
+                debugLog("Terminal info: type=\(info.type), sessionId=\(info.sessionId ?? "nil"), tty=\(info.tty ?? "nil"), cwd=\(info.cwd ?? "nil")")
+                TerminalActivator.activate(info)
+            } else {
+                debugLog("No terminal info in userInfo")
+            }
+        default:
+            debugLog("Unknown action: \(response.actionIdentifier)")
+        }
+
+        completionHandler()
+        // Keep running - don't exit after notification click
+    }
+
+    /// Extract TerminalInfo from notification userInfo
+    private func extractTerminalInfo(from userInfo: [AnyHashable: Any]) -> TerminalInfo? {
         var terminalDict: [String: String] = [:]
         for (key, value) in userInfo {
             if let keyStr = key as? String, let valueStr = value as? String {
@@ -132,16 +192,32 @@ class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
             }
         }
 
-        if !terminalDict.isEmpty {
-            let terminalInfo = TerminalInfo.from(dictionary: terminalDict)
-            debugLog("Terminal info: type=\(terminalInfo.type), sessionId=\(terminalInfo.sessionId ?? "nil"), tty=\(terminalInfo.tty ?? "nil"), cwd=\(terminalInfo.cwd ?? "nil")")
-            TerminalActivator.activate(terminalInfo)
-        } else {
-            debugLog("No terminal info in userInfo")
+        guard !terminalDict.isEmpty else { return nil }
+        return TerminalInfo.from(dictionary: terminalDict)
+    }
+
+    /// Handle permission approval or denial
+    private func handlePermissionResponse(approved: Bool, terminalInfo: TerminalInfo?) {
+        guard let info = terminalInfo else {
+            debugLog("Cannot send permission response: no terminal info")
+            return
         }
 
-        completionHandler()
-        // Keep running - don't exit after notification click
+        let action = approved ? "approve" : "deny"
+        debugLog("Permission \(action) for terminal: \(info.type)")
+
+        let success: Bool
+        if approved {
+            success = TerminalInputHandler.sendApproval(to: info)
+        } else {
+            success = TerminalInputHandler.sendDenial(to: info)
+        }
+
+        if success {
+            debugLog("Permission response sent successfully")
+        } else {
+            debugLog("Failed to send permission response")
+        }
     }
 
     func userNotificationCenter(

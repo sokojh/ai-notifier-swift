@@ -186,6 +186,15 @@ enum L10n {
         static var ntfyTip: String { localized("setup.ntfy_tip") }
     }
 
+    // MARK: - Notification Actions
+
+    enum Action {
+        /// "Approve" - for permission request notifications
+        static var approve: String { localized("action.approve") }
+        /// "Deny" - for permission request notifications
+        static var deny: String { localized("action.deny") }
+    }
+
     // MARK: - Hook Installation Results
 
     enum HookResult {

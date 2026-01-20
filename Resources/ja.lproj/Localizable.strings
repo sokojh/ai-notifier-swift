@@ -80,6 +80,10 @@
 "setup.no_cli_installed" = "CLI がインストールされていません。Claude Code、Gemini CLI、Codex CLI、または OpenCode をインストールしてから再実行してください。";
 "setup.ntfy_tip" = "💡 メニューバーの 🔔 アイコンから ntfy プッシュ通知を設定できます。";
 
+/* MARK: - Notification Actions */
+"action.approve" = "承認";
+"action.deny" = "拒否";
+
 /* MARK: - Hook Installation Results */
 "hook.result.installed" = "フックをインストールしました";
 "hook.result.already_installed" = "設定済み";

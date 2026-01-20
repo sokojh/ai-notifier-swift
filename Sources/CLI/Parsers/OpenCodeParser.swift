@@ -36,7 +36,8 @@ struct OpenCodeParser {
                 subtitle: L10n.Notification.Subtitle.permissionNeeded,
                 body: L10n.Notification.Body.approvalNeeded,
                 cli: cli,
-                terminalInfo: terminalInfo
+                terminalInfo: terminalInfo,
+                isPermissionRequest: true
             )
         default:
             return NotificationContent(
