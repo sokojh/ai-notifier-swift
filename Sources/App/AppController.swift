@@ -178,6 +178,12 @@ struct AppController {
         if isFirstInstance {
             debugLog("First instance - starting background run loop")
 
+            // Detach from terminal to ensure menu bar icon stays visible
+            // when user switches to other apps
+            if setsid() == -1 {
+                debugLog("setsid() failed, continuing anyway")
+            }
+
             // Write PID file and setup cleanup
             ProcessManager.writePIDFile()
             ProcessManager.setupCleanup()

@@ -106,9 +106,9 @@ cat > "$APP_BUNDLE/Contents/Info.plist" << EOF
     <key>CFBundleExecutable</key>
     <string>${APP_NAME}</string>
     <key>CFBundleVersion</key>
-    <string>1.0.1</string>
+    <string>1.0.2</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0.1</string>
+    <string>1.0.2</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleInfoDictionaryVersion</key>

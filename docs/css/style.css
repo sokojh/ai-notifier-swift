@@ -177,15 +177,7 @@ body {
 }
 
 .feature-card.highlight {
-    background: linear-gradient(135deg, rgba(88, 166, 255, 0.1), rgba(163, 113, 247, 0.1));
     border-color: var(--accent-primary);
-}
-
-.feature-card.highlight h3 {
-    background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
 }
 
 .feature-icon {

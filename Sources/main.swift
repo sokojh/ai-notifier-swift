@@ -2,6 +2,17 @@ import Foundation
 import AppKit
 import Darwin
 
+// MARK: - Process Detachment
+
+/// Detach from parent terminal to run as independent GUI process
+/// This fixes the issue where menu bar icon disappears when Terminal loses focus
+func detachFromTerminal() {
+    // Create a new session (detach from controlling terminal)
+    if setsid() == -1 {
+        debugLog("setsid() failed, continuing anyway")
+    }
+}
+
 // MARK: - Background Mode
 
 /// Run app in background with menu bar icon only
@@ -11,6 +22,9 @@ func runBackgroundMode() {
         debugLog("Another instance already running, exiting")
         return
     }
+
+    // Detach from terminal to ensure menu bar icon stays visible
+    detachFromTerminal()
 
     debugLog("Starting background mode with menu bar icon")
 
