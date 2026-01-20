@@ -6,7 +6,7 @@
 
 <p align="center">
   <a href="https://github.com/sokojh/ai-notifier-swift/releases/latest"><img src="https://img.shields.io/github/v/release/sokojh/ai-notifier-swift?style=flat-square" alt="Release"></a>
-  <a href="https://github.com/sokojh/ai-notifier-swift/blob/main/LICENSE"><img src="https://img.shields.io/github/license/sokojh/ai-notifier-swift?style=flat-square" alt="License"></a>
+  <a href="https://github.com/sokojh/ai-notifier-swift/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="License"></a>
   <a href="https://sokojh.github.io/ai-notifier-swift/"><img src="https://img.shields.io/badge/website-GitHub%20Pages-blue?style=flat-square" alt="Website"></a>
 </p>
 
