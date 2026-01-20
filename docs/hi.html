@@ -1,47 +1,26 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="hi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Notifier - Native macOS notifications for AI coding assistants</title>
-    <meta name="description" content="Get native macOS notifications when Claude, Gemini, Codex, or OpenCode finish their tasks. Click to jump back to your terminal instantly.">
+    <title>AI Notifier - AI कोडिंग सहायकों के लिए नेटिव macOS नोटिफिकेशन</title>
+    <meta name="description" content="जब Claude, Gemini, Codex या OpenCode अपने कार्य पूरे करें तो नेटिव macOS नोटिफिकेशन प्राप्त करें। टर्मिनल पर तुरंत वापस जाने के लिए क्लिक करें।">
     <link rel="stylesheet" href="css/style.css">
     <link rel="icon" type="image/png" href="images/logo.png">
-    <script>
-        // Auto-detect language and redirect (only on first visit)
-        (function() {
-            if (sessionStorage.getItem('lang-selected')) return;
-            const lang = navigator.language || navigator.userLanguage;
-            const langMap = {
-                'ko': 'ko.html', 'ko-KR': 'ko.html',
-                'ja': 'ja.html', 'ja-JP': 'ja.html',
-                'zh': 'zh.html', 'zh-CN': 'zh.html', 'zh-Hans': 'zh.html', 'zh-TW': 'zh.html',
-                'es': 'es.html', 'es-ES': 'es.html', 'es-MX': 'es.html',
-                'de': 'de.html', 'de-DE': 'de.html',
-                'ru': 'ru.html', 'ru-RU': 'ru.html',
-                'hi': 'hi.html', 'hi-IN': 'hi.html'
-            };
-            const target = langMap[lang] || langMap[lang.split('-')[0]];
-            if (target) {
-                sessionStorage.setItem('lang-selected', 'true');
-                window.location.replace(target);
-            }
-        })();
-    </script>
 </head>
 <body>
     <!-- Language Switcher -->
     <nav class="lang-nav">
         <div class="container">
             <select class="lang-select" onchange="switchLang(this.value)">
-                <option value="index.html" selected>English</option>
+                <option value="index.html">English</option>
                 <option value="ko.html">한국어</option>
                 <option value="ja.html">日本語</option>
                 <option value="zh.html">中文</option>
                 <option value="es.html">Español</option>
                 <option value="de.html">Deutsch</option>
                 <option value="ru.html">Русский</option>
-                <option value="hi.html">हिन्दी</option>
+                <option value="hi.html" selected>हिन्दी</option>
             </select>
         </div>
     </nav>
@@ -49,12 +28,12 @@
     <!-- Hero Section -->
     <section class="hero">
         <div class="container">
-            <img src="images/logo.png" alt="AI Notifier Logo" class="logo">
+            <img src="images/logo.png" alt="AI Notifier लोगो" class="logo">
             <h1>AI Notifier</h1>
-            <p class="tagline">Native macOS notifications for AI coding assistants</p>
+            <p class="tagline">AI कोडिंग सहायकों के लिए नेटिव macOS नोटिफिकेशन</p>
             <p class="description">
-                Get notified when Claude, Gemini, Codex, or OpenCode finish their tasks.
-                Click the notification to jump back to your terminal instantly.
+                जब Claude, Gemini, Codex या OpenCode अपने कार्य पूरे करें तो नोटिफिकेशन प्राप्त करें।
+                सही टर्मिनल विंडो पर तुरंत वापस जाने के लिए नोटिफिकेशन पर क्लिक करें।
             </p>
             <div class="cta-buttons">
                 <a href="https://github.com/sokojh/ai-notifier-swift/releases/latest/download/AI-Notifier.dmg" class="btn btn-primary">
@@ -63,13 +42,13 @@
                         <polyline points="7 10 12 15 17 10"></polyline>
                         <line x1="12" y1="15" x2="12" y2="3"></line>
                     </svg>
-                    Download DMG
+                    DMG डाउनलोड करें
                 </a>
                 <a href="https://github.com/sokojh/ai-notifier-swift" class="btn btn-secondary">
                     <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
                     </svg>
-                    View on GitHub
+                    GitHub पर देखें
                 </a>
             </div>
         </div>
@@ -78,7 +57,7 @@
     <!-- Features Section -->
     <section class="features">
         <div class="container">
-            <h2>Features</h2>
+            <h2>विशेषताएं</h2>
             <div class="feature-grid">
                 <div class="feature-card">
                     <div class="feature-icon">
@@ -89,8 +68,8 @@
                             <img src="images/opencode-logo.png" alt="OpenCode" title="OpenCode">
                         </div>
                     </div>
-                    <h3>Multi-CLI Support</h3>
-                    <p>Works with Claude Code, Gemini CLI, Codex, and OpenCode out of the box.</p>
+                    <h3>मल्टी-CLI समर्थन</h3>
+                    <p>Claude Code, Gemini CLI, Codex और OpenCode के साथ तुरंत काम करता है।</p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">
@@ -102,8 +81,8 @@
                             <line x1="12" y1="14" x2="17" y2="14"></line>
                         </svg>
                     </div>
-                    <h3>Click-to-Focus</h3>
-                    <p>Click any notification to instantly jump back to the right terminal window.</p>
+                    <h3>क्लिक-टू-फोकस</h3>
+                    <p>किसी भी नोटिफिकेशन पर क्लिक करके सही टर्मिनल विंडो पर तुरंत वापस जाएं।</p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">
@@ -113,8 +92,8 @@
                             <path d="M12 2v1"></path>
                         </svg>
                     </div>
-                    <h3>ntfy Integration</h3>
-                    <p>Get push notifications on your phone via ntfy.sh integration.</p>
+                    <h3>ntfy एकीकरण</h3>
+                    <p>ntfy.sh एकीकरण के माध्यम से अपने फोन पर पुश नोटिफिकेशन प्राप्त करें।</p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">
@@ -124,8 +103,8 @@
                             <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
                         </svg>
                     </div>
-                    <h3>8 Languages</h3>
-                    <p>Localized in English, Korean, Japanese, Chinese, Spanish, German, Russian, and Hindi.</p>
+                    <h3>8 भाषाएं</h3>
+                    <p>अंग्रेजी, कोरियाई, जापानी, चीनी, स्पेनिश, जर्मन, रूसी और हिंदी में स्थानीयकृत।</p>
                 </div>
             </div>
         </div>
@@ -134,7 +113,7 @@
     <!-- Terminal Support Section -->
     <section class="terminals">
         <div class="container">
-            <h2>Supported Terminals</h2>
+            <h2>समर्थित टर्मिनल</h2>
             <div class="terminal-list">
                 <span class="terminal-badge">iTerm2</span>
                 <span class="terminal-badge">Terminal.app</span>
@@ -152,13 +131,13 @@
     <!-- Installation Section -->
     <section class="installation">
         <div class="container">
-            <h2>Installation</h2>
+            <h2>इंस्टॉलेशन</h2>
             <div class="install-options">
                 <div class="install-option">
-                    <h3>One-liner Install</h3>
+                    <h3>एक-लाइन इंस्टॉल</h3>
                     <div class="code-block">
                         <code>curl -fsSL https://raw.githubusercontent.com/sokojh/ai-notifier-swift/main/install.sh | bash</code>
-                        <button class="copy-btn" onclick="copyCode(this)" title="Copy to clipboard">
+                        <button class="copy-btn" onclick="copyCode(this)" title="क्लिपबोर्ड पर कॉपी करें">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
                                 <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
@@ -167,8 +146,8 @@
                     </div>
                 </div>
                 <div class="install-option">
-                    <h3>Manual Download</h3>
-                    <p>Download the DMG from <a href="https://github.com/sokojh/ai-notifier-swift/releases/latest">GitHub Releases</a> and drag to Applications.</p>
+                    <h3>मैनुअल डाउनलोड</h3>
+                    <p><a href="https://github.com/sokojh/ai-notifier-swift/releases/latest">GitHub Releases</a> से DMG डाउनलोड करें और Applications में ड्रैग करें।</p>
                 </div>
             </div>
         </div>
@@ -180,9 +159,9 @@
             <p>
                 <a href="https://github.com/sokojh/ai-notifier-swift">GitHub</a>
                 <span class="separator">•</span>
-                <a href="https://github.com/sokojh/ai-notifier-swift/blob/main/LICENSE">MIT License</a>
+                <a href="https://github.com/sokojh/ai-notifier-swift/blob/main/LICENSE">MIT लाइसेंस</a>
                 <span class="separator">•</span>
-                Made with ❤️ for developers
+                डेवलपर्स के लिए ❤️ से बनाया गया
             </p>
         </div>
     </footer>
