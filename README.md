@@ -5,6 +5,12 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/sokojh/ai-notifier-swift/releases/latest"><img src="https://img.shields.io/github/v/release/sokojh/ai-notifier-swift?style=flat-square" alt="Release"></a>
+  <a href="https://github.com/sokojh/ai-notifier-swift/blob/main/LICENSE"><img src="https://img.shields.io/github/license/sokojh/ai-notifier-swift?style=flat-square" alt="License"></a>
+  <a href="https://sokojh.github.io/ai-notifier-swift/"><img src="https://img.shields.io/badge/website-GitHub%20Pages-blue?style=flat-square" alt="Website"></a>
+</p>
+
+<p align="center">
   <img src="Resources/example.png" alt="AI Notifier Example" width="600">
 </p>
 
@@ -42,12 +48,16 @@ Built with Swift using the `UNUserNotificationCenter` API, fully compatible with
 
 ## Installation
 
-### One-liner Install (Recommended)
+### Option 1: DMG Download (Easiest)
+
+1. Download **[AI-Notifier.dmg](https://github.com/sokojh/ai-notifier-swift/releases/latest/download/AI-Notifier.dmg)** from Releases
+2. Open the DMG and drag `ai-notifier.app` to Applications
+3. Double-click the app to run setup (permissions + hook installation)
+
+### Option 2: One-liner Install
 
 ```bash
-rm -rf /tmp/ai-notifier-swift && \
-git clone https://github.com/sokojh/ai-notifier-swift.git /tmp/ai-notifier-swift && \
-/tmp/ai-notifier-swift/install.sh
+curl -fsSL https://raw.githubusercontent.com/sokojh/ai-notifier-swift/main/install.sh | bash
 ```
 
 The install script automatically:
@@ -56,7 +66,7 @@ The install script automatically:
 3. Configures hooks for Claude Code, Gemini CLI, Codex CLI, OpenCode
 4. Requests notification permissions
 
-### Manual Installation
+### Option 3: Build from Source
 
 ```bash
 git clone https://github.com/sokojh/ai-notifier-swift.git
