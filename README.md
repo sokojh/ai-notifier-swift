@@ -4,6 +4,10 @@
   <img src="Resources/ai-notifier-logo.png" alt="AI Notifier Logo" width="128">
 </p>
 
+<p align="center">
+  <img src="Resources/example.png" alt="AI Notifier Example" width="600">
+</p>
+
 Native macOS notification app for AI coding assistants (Claude Code, Gemini CLI, Codex CLI, OpenCode)
 
 Built with Swift using the `UNUserNotificationCenter` API, fully compatible with all recent macOS versions including Sequoia and Tahoe.
