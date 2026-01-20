@@ -35,6 +35,11 @@ Built with Swift using the `UNUserNotificationCenter` API, fully compatible with
 - Supports iTerm2, Terminal.app, VSCode, Kitty, and more
 - Precise tab/session selection (varies by terminal)
 
+**Permission Request Actions** (iTerm2 & Terminal.app)
+- Approve/Deny buttons directly from notification
+- No need to switch to terminal for permission prompts
+- Works with Claude Code, Gemini CLI, Codex CLI
+
 **ntfy Integration** (optional)
 - Mobile push notifications via [ntfy.sh](https://ntfy.sh)
 - Self-hosted ntfy server support (Bearer/Basic auth)
@@ -125,6 +130,32 @@ allow_remote_control yes
 | **JetBrains** | `TERMINAL_EMULATOR=JetBrains-JediTerm` | All JetBrains IDEs ([source](https://github.com/JetBrains/jediterm/issues/253)) |
 | **Cursor** | `CURSOR_AGENT` or `CURSOR_CLI` | ⚠️ `TERM_PROGRAM=vscode` inherited ([source](https://github.com/getcursor/cursor/issues/1760)) |
 | **Zed** | `ZED_TERM=true` | ([source](https://github.com/zed-industries/zed/issues/4571)) |
+
+---
+
+## Permission Request Actions
+
+<p align="center">
+  <img src="Resources/terminal-approval-options.png" alt="Permission Approval Options" width="400">
+</p>
+
+When a CLI requests permission (file creation, command execution, etc.), you can **approve or deny directly from the notification** without switching to the terminal.
+
+### Supported Terminals
+
+| Terminal | Support | Method |
+|----------|---------|--------|
+| **iTerm2** | ✅ Full | AppleScript keystroke |
+| **Terminal.app** | ✅ Full | AppleScript keystroke |
+| Others | ❌ | Buttons not shown |
+
+### How It Works
+
+1. CLI requests permission → Notification appears with **Options** dropdown
+2. Click **Approve** → Sends "1" keystroke to select first option (Yes/Allow)
+3. Click **Deny** → Sends ESC key to cancel
+
+> **Note:** This feature requires precise terminal session targeting, which is only available in iTerm2 and Terminal.app. For other terminals, click the notification to switch to the terminal and respond manually.
 
 ---
 
