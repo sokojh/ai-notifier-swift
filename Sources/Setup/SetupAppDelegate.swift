@@ -211,7 +211,15 @@ func installHooksAndShowResult() {
             // Setup status bar icon
             StatusBarController.shared.setup()
 
-            // App continues running in background with menu bar icon
+            // Close all setup windows to transition to background mode
+            // runSetupMode()의 app.run()이 이미 실행 중이므로
+            // 창만 닫으면 백그라운드 모드로 자동 전환됨
+            DispatchQueue.main.async {
+                for window in NSApp.windows {
+                    window.close()
+                }
+                debugLog("Setup windows closed, running in background mode")
+            }
         }
     }
 }
