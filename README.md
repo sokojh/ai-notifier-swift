@@ -35,17 +35,10 @@ Built with Swift using the `UNUserNotificationCenter` API, fully compatible with
 - Supports iTerm2, Terminal.app, VSCode, Kitty, and more
 - Precise tab/session selection (varies by terminal)
 
-### ⭐ One-Click Permission Approval
-
-<p align="center">
-  <img src="Resources/terminal-approval-options.png" alt="Permission Approval Options" width="400">
-</p>
-
-> **NEW:** Approve or deny CLI permission requests **directly from the notification** — no need to switch windows!
-
-- **Approve** → Sends keystroke to accept permission
-- **Deny** → Sends ESC to cancel
-- Supported in **iTerm2** and **Terminal.app**
+**Permission Request Actions** (iTerm2 & Terminal.app)
+- Approve/Deny buttons directly from notification
+- No need to switch to terminal for permission prompts
+- Works with Claude Code, Gemini CLI, Codex CLI
 
 **ntfy Integration** (optional)
 - Mobile push notifications via [ntfy.sh](https://ntfy.sh)
