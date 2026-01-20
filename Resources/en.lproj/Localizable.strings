@@ -17,7 +17,18 @@
 
 /* MARK: - Menu */
 "menu.settings" = "Settings...";
+"menu.check_for_updates" = "Check for Updates...";
 "menu.quit" = "Quit";
+
+/* MARK: - Update */
+"update.available" = "Update Available";
+"update.up_to_date" = "You're up to date!";
+"update.download_now" = "Download";
+"update.later" = "Later";
+"update.check_failed" = "Update check failed";
+"update.checking" = "Checking...";
+"update.new_version_available" = "New version %@ is available";
+"update.current_version" = "Current version: %@";
 
 /* MARK: - Settings Window */
 "settings.window_title" = "AI Notifier Settings";

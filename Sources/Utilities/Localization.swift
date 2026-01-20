@@ -53,8 +53,31 @@ enum L10n {
     enum Menu {
         /// "설정..."
         static var settings: String { localized("menu.settings") }
+        /// "업데이트 확인..."
+        static var checkForUpdates: String { localized("menu.check_for_updates") }
         /// "종료"
         static var quit: String { localized("menu.quit") }
+    }
+
+    // MARK: - Update
+
+    enum Update {
+        /// "업데이트 사용 가능"
+        static var available: String { localized("update.available") }
+        /// "최신 버전입니다!"
+        static var upToDate: String { localized("update.up_to_date") }
+        /// "다운로드"
+        static var downloadNow: String { localized("update.download_now") }
+        /// "나중에"
+        static var later: String { localized("update.later") }
+        /// "업데이트 확인 실패"
+        static var checkFailed: String { localized("update.check_failed") }
+        /// "확인 중..."
+        static var checking: String { localized("update.checking") }
+        /// "새 버전 %@ 사용 가능"
+        static func newVersionAvailable(_ version: String) -> String { localized("update.new_version_available", version) }
+        /// "현재 버전: %@"
+        static func currentVersion(_ version: String) -> String { localized("update.current_version", version) }
     }
 
     // MARK: - Settings Window

@@ -27,6 +27,19 @@ func runBackgroundMode() {
     // Setup notification delegate for click handling
     _ = NotificationManager.shared
 
+    // Background update check (5 seconds after start)
+    DispatchQueue.global().asyncAfter(deadline: .now() + 5) {
+        debugLog("Background: Checking for updates")
+        UpdateManager.shared.checkForUpdates { result in
+            if case .success(let release) = result, release != nil {
+                debugLog("Background: Update available!")
+                DispatchQueue.main.async {
+                    StatusBarController.shared.showUpdateBadge()
+                }
+            }
+        }
+    }
+
     app.run()
 }
 

@@ -17,7 +17,18 @@
 
 /* MARK: - Menu */
 "menu.settings" = "Настройки...";
+"menu.check_for_updates" = "Проверить обновления...";
 "menu.quit" = "Выход";
+
+/* MARK: - Update */
+"update.available" = "Доступно обновление";
+"update.up_to_date" = "У вас последняя версия!";
+"update.download_now" = "Скачать";
+"update.later" = "Позже";
+"update.check_failed" = "Ошибка проверки обновлений";
+"update.checking" = "Проверка...";
+"update.new_version_available" = "Доступна новая версия %@";
+"update.current_version" = "Текущая версия: %@";
 
 /* MARK: - Settings Window */
 "settings.window_title" = "Настройки AI Notifier";

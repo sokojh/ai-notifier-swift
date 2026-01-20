@@ -8,6 +8,7 @@ class StatusBarController: NSObject {
 
     private var statusItem: NSStatusItem?
     private var settingsWindowController: SettingsWindowController?
+    private var updateMenuItem: NSMenuItem?
 
     private override init() {
         super.init()
@@ -44,12 +45,27 @@ class StatusBarController: NSObject {
         titleItem.isEnabled = false
         menu.addItem(titleItem)
 
+        // Version item (disabled, for information)
+        let versionItem = NSMenuItem(
+            title: L10n.Update.currentVersion(UpdateManager.shared.currentVersion),
+            action: nil,
+            keyEquivalent: ""
+        )
+        versionItem.isEnabled = false
+        menu.addItem(versionItem)
+
         menu.addItem(NSMenuItem.separator())
 
         // Settings item
         let settingsItem = NSMenuItem(title: L10n.Menu.settings, action: #selector(openSettings), keyEquivalent: ",")
         settingsItem.target = self
         menu.addItem(settingsItem)
+
+        // Check for Updates item
+        let updateItem = NSMenuItem(title: L10n.Menu.checkForUpdates, action: #selector(checkForUpdates), keyEquivalent: "")
+        updateItem.target = self
+        menu.addItem(updateItem)
+        self.updateMenuItem = updateItem
 
         menu.addItem(NSMenuItem.separator())
 
@@ -76,6 +92,97 @@ class StatusBarController: NSObject {
     @objc private func quitApp() {
         debugLog("StatusBar: Quit requested")
         NSApp.terminate(nil)
+    }
+
+    @objc private func checkForUpdates() {
+        debugLog("StatusBar: Checking for updates")
+
+        // Update menu item to show checking status
+        updateMenuItem?.title = L10n.Update.checking
+        updateMenuItem?.isEnabled = false
+
+        UpdateManager.shared.checkForUpdates { [weak self] result in
+            DispatchQueue.main.async {
+                // Restore menu item
+                self?.updateMenuItem?.title = L10n.Menu.checkForUpdates
+                self?.updateMenuItem?.isEnabled = true
+
+                switch result {
+                case .success(let release):
+                    if let release = release {
+                        self?.showUpdateAvailableAlert(release: release)
+                    } else {
+                        self?.showUpToDateAlert()
+                    }
+                case .failure(let error):
+                    self?.showUpdateCheckFailedAlert(error: error)
+                }
+            }
+        }
+    }
+
+    private func showUpdateAvailableAlert(release: GitHubRelease) {
+        let alert = NSAlert()
+        alert.messageText = L10n.Update.available
+        alert.informativeText = L10n.Update.newVersionAvailable(release.tagName)
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: L10n.Update.downloadNow)
+        alert.addButton(withTitle: L10n.Update.later)
+
+        NSApp.activate(ignoringOtherApps: true)
+        let response = alert.runModal()
+
+        if response == .alertFirstButtonReturn {
+            UpdateManager.shared.openDownloadPage()
+        }
+    }
+
+    private func showUpToDateAlert() {
+        let alert = NSAlert()
+        alert.messageText = L10n.Update.upToDate
+        alert.informativeText = L10n.Update.currentVersion(UpdateManager.shared.currentVersion)
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: L10n.Button.ok)
+
+        NSApp.activate(ignoringOtherApps: true)
+        alert.runModal()
+    }
+
+    private func showUpdateCheckFailedAlert(error: Error) {
+        let alert = NSAlert()
+        alert.messageText = L10n.Update.checkFailed
+        alert.informativeText = error.localizedDescription
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: L10n.Button.ok)
+
+        NSApp.activate(ignoringOtherApps: true)
+        alert.runModal()
+    }
+
+    // MARK: - Update Badge
+
+    func showUpdateBadge() {
+        guard let button = statusItem?.button else { return }
+
+        // Update icon to show badge
+        if let image = NSImage(systemSymbolName: "bell.badge.fill", accessibilityDescription: "AI Notifier - Update Available") {
+            image.isTemplate = true
+            button.image = image
+        }
+
+        debugLog("StatusBar: Update badge shown")
+    }
+
+    func hideUpdateBadge() {
+        guard let button = statusItem?.button else { return }
+
+        // Restore normal icon
+        if let image = NSImage(systemSymbolName: "bell.badge", accessibilityDescription: "AI Notifier") {
+            image.isTemplate = true
+            button.image = image
+        }
+
+        debugLog("StatusBar: Update badge hidden")
     }
 
     // MARK: - Cleanup

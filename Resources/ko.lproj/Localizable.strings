@@ -17,7 +17,18 @@
 
 /* MARK: - Menu */
 "menu.settings" = "설정...";
+"menu.check_for_updates" = "업데이트 확인...";
 "menu.quit" = "종료";
+
+/* MARK: - Update */
+"update.available" = "업데이트 사용 가능";
+"update.up_to_date" = "최신 버전입니다!";
+"update.download_now" = "다운로드";
+"update.later" = "나중에";
+"update.check_failed" = "업데이트 확인 실패";
+"update.checking" = "확인 중...";
+"update.new_version_available" = "새 버전 %@ 사용 가능";
+"update.current_version" = "현재 버전: %@";
 
 /* MARK: - Settings Window */
 "settings.window_title" = "AI Notifier 설정";

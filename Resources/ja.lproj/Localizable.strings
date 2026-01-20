@@ -17,7 +17,18 @@
 
 /* MARK: - Menu */
 "menu.settings" = "設定...";
+"menu.check_for_updates" = "アップデートを確認...";
 "menu.quit" = "終了";
+
+/* MARK: - Update */
+"update.available" = "アップデート可能";
+"update.up_to_date" = "最新バージョンです！";
+"update.download_now" = "ダウンロード";
+"update.later" = "後で";
+"update.check_failed" = "アップデート確認に失敗";
+"update.checking" = "確認中...";
+"update.new_version_available" = "新しいバージョン %@ が利用可能です";
+"update.current_version" = "現在のバージョン: %@";
 
 /* MARK: - Settings Window */
 "settings.window_title" = "AI Notifier 設定";

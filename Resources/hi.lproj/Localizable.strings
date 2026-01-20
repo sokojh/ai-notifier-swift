@@ -17,7 +17,18 @@
 
 /* MARK: - Menu */
 "menu.settings" = "सेटिंग्स...";
+"menu.check_for_updates" = "अपडेट की जांच करें...";
 "menu.quit" = "बंद करें";
+
+/* MARK: - Update */
+"update.available" = "अपडेट उपलब्ध";
+"update.up_to_date" = "आप अप टू डेट हैं!";
+"update.download_now" = "डाउनलोड";
+"update.later" = "बाद में";
+"update.check_failed" = "अपडेट जांच विफल";
+"update.checking" = "जांच हो रही है...";
+"update.new_version_available" = "नया संस्करण %@ उपलब्ध है";
+"update.current_version" = "वर्तमान संस्करण: %@";
 
 /* MARK: - Settings Window */
 "settings.window_title" = "AI Notifier सेटिंग्स";
