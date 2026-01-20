@@ -5,10 +5,12 @@ import Foundation
 struct TerminalInfo {
     let type: TerminalType
     let sessionId: String?      // iTerm2 ITERM_SESSION_ID
-    let cwd: String?            // Working directory for VS Code
+    let cwd: String?            // Working directory for VS Code, Cursor, Zed
     let tty: String?            // TTY device for Terminal.app (e.g., /dev/ttys001)
     let kittyWindowId: String?  // Kitty KITTY_WINDOW_ID
 
+    /// Capture terminal info from environment
+    /// - Parameter cwd: Working directory (overrides PWD env var)
     static func capture(cwd: String? = nil) -> TerminalInfo {
         let env = ProcessInfo.processInfo.environment
         return TerminalInfo(

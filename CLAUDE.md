@@ -116,14 +116,19 @@ body: L10n.Notification.Body.permissionRequired    // "권한 승인이 필요�
 
 ### 터미널 감지 방식
 
-| 터미널 | 환경변수 | 세션 식별자 |
-|--------|----------|-------------|
+| 터미널/IDE | 환경변수 | 세션 식별자 |
+|------------|----------|-------------|
 | iTerm2 | `TERM_PROGRAM=iTerm.app` | `ITERM_SESSION_ID` (UUID) |
 | Terminal.app | `TERM_PROGRAM=Apple_Terminal` | `TTY` (e.g., `/dev/ttys001`) |
 | VSCode | `TERM_PROGRAM=vscode` | `PWD` (cwd) |
 | Ghostty | `TERM_PROGRAM=ghostty` | 없음 |
 | Warp | `TERM_PROGRAM=WarpTerminal` | 없음 |
 | Kitty | `KITTY_WINDOW_ID` | `KITTY_WINDOW_ID` |
+| **JetBrains IDEs** | `TERMINAL_EMULATOR=JetBrains-JediTerm` | `PWD` (cwd) |
+| **Cursor** | `CURSOR_AGENT` 또는 `CURSOR_CLI` | `PWD` (cwd) |
+| **Zed** | `ZED_TERM=true` | `PWD` (cwd) |
+
+> ⚠️ **Windsurf 미지원**: VS Code 포크이지만 고유 환경변수가 없어 감지 불가 (`TERM_PROGRAM=vscode` 상속)
 
 ### 터미널별 활성화 방식
 
@@ -171,6 +176,19 @@ kitten @ focus-window --match id:$KITTY_WINDOW_ID
 **Ghostty, Warp** - AppleScript activate만 (탭 선택 불가)
 - 세션 식별 API 미지원
 - 앱만 활성화되고 사용자가 수동으로 탭 선택 필요
+
+**JetBrains IDEs** (PhpStorm, IntelliJ, WebStorm, PyCharm 등) - CLI + AppleScript
+- `phpstorm <cwd>`, `idea <cwd>` 등 CLI로 프로젝트 창 활성화
+- CLI 경로: `/usr/local/bin/`, `~/Library/Application Support/JetBrains/Toolbox/scripts/`
+- CLI 없으면 AppleScript fallback
+- 터미널 탭 선택 불가 (프로젝트 창만 활성화)
+
+**Cursor** - `cursor <cwd>` CLI 실행 후 AppleScript activate
+- VS Code 포크, 동일한 방식으로 작동
+- ⚠️ `TERM_PROGRAM`이 아닌 `CURSOR_AGENT`/`CURSOR_CLI` 환경변수로 감지 (환경 상속 문제)
+
+**Zed** - `zed <cwd>` CLI 실행 후 AppleScript activate
+- 고성능 에디터, CLI로 폴더 활성화
 
 ---
 

@@ -87,10 +87,13 @@ After installation, go to **System Settings → Notifications → AI Notifier**:
 
 ### Partial Support (Window Activation)
 
-| Terminal | Method | Notes |
-|----------|--------|-------|
+| Terminal/IDE | Method | Notes |
+|--------------|--------|-------|
 | **VSCode** | `code` CLI | Activates folder window (cannot select internal terminal tab) |
 | **Kitty** | `kitten @` | Focus by window ID → **Requires remote control setting** |
+| **Cursor** | `cursor` CLI | VS Code fork - activates folder window |
+| **Zed** | `zed` CLI | Activates folder window |
+| **JetBrains IDEs** | CLI + AppleScript | PhpStorm, IntelliJ, WebStorm, PyCharm, etc. (activates project window) |
 | **Ghostty** | AppleScript | App activation only (no session API) |
 | **Warp** | AppleScript | App activation only (cannot select tab) |
 
@@ -100,6 +103,14 @@ After installation, go to **System Settings → Notifications → AI Notifier**:
 ```
 allow_remote_control yes
 ```
+
+### IDE Detection Methods
+
+| IDE | Environment Variable | Notes |
+|-----|---------------------|-------|
+| **JetBrains** | `TERMINAL_EMULATOR=JetBrains-JediTerm` | All JetBrains IDEs ([source](https://github.com/JetBrains/jediterm/issues/253)) |
+| **Cursor** | `CURSOR_AGENT` or `CURSOR_CLI` | ⚠️ `TERM_PROGRAM=vscode` inherited ([source](https://github.com/getcursor/cursor/issues/1760)) |
+| **Zed** | `ZED_TERM=true` | ([source](https://github.com/zed-industries/zed/issues/4571)) |
 
 ---
 

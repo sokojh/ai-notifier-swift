@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 
 // MARK: - Terminal Activator
@@ -17,6 +18,12 @@ struct TerminalActivator {
             activateWarp(cwd: info.cwd)
         case .kitty:
             activateKitty(windowId: info.kittyWindowId)
+        case .jetbrains:
+            activateJetBrainsIDE(cwd: info.cwd)
+        case .cursor:
+            activateCursor(cwd: info.cwd)
+        case .zed:
+            activateZed(cwd: info.cwd)
         case .unknown:
             // Try to activate based on available info
             if info.sessionId != nil {
@@ -221,6 +228,158 @@ struct TerminalActivator {
         end tell
         tell application "System Events"
             set frontmost of process "kitty" to true
+        end tell
+        """)
+    }
+
+    // MARK: - IDE Terminal Activation (Window Only)
+
+    private static func activateJetBrainsIDE(cwd: String?) {
+        debugLog("Activating JetBrains IDE with cwd: \(cwd ?? "nil")")
+
+        // JetBrains IDE CLI commands and app names (in order of popularity)
+        // CLI paths: /usr/local/bin/<cli> or ~/Library/Application Support/JetBrains/Toolbox/scripts/<cli>
+        let jetbrainsIDEs: [(cli: String, appName: String, processName: String)] = [
+            ("phpstorm", "PhpStorm", "PhpStorm"),
+            ("idea", "IntelliJ IDEA", "IntelliJ IDEA"),
+            ("webstorm", "WebStorm", "WebStorm"),
+            ("pycharm", "PyCharm", "PyCharm"),
+            ("clion", "CLion", "CLion"),
+            ("rubymine", "RubyMine", "RubyMine"),
+            ("goland", "GoLand", "GoLand"),
+            ("datagrip", "DataGrip", "DataGrip"),
+            ("rider", "Rider", "Rider"),
+            ("studio", "Android Studio", "Android Studio")
+        ]
+
+        // Find running JetBrains app
+        let runningApps = NSWorkspace.shared.runningApplications
+        for ide in jetbrainsIDEs {
+            if runningApps.contains(where: { $0.localizedName?.contains(ide.appName) == true }) {
+                debugLog("Found running JetBrains IDE: \(ide.appName)")
+
+                // Try CLI first to open project folder (focuses existing window if already open)
+                if let cwd = cwd, !cwd.isEmpty {
+                    let cliPaths = [
+                        "/usr/local/bin/\(ide.cli)",
+                        "/opt/homebrew/bin/\(ide.cli)",
+                        NSHomeDirectory() + "/Library/Application Support/JetBrains/Toolbox/scripts/\(ide.cli)"
+                    ]
+
+                    for path in cliPaths {
+                        if FileManager.default.fileExists(atPath: path) {
+                            debugLog("Running: \(path) \(cwd)")
+                            let task = Process()
+                            task.launchPath = path
+                            task.arguments = [cwd]
+                            task.standardOutput = FileHandle.nullDevice
+                            task.standardError = FileHandle.nullDevice
+                            do {
+                                try task.run()
+                                // CLI will focus the existing window, no need for AppleScript
+                                return
+                            } catch {
+                                debugLog("JetBrains CLI failed: \(error)")
+                            }
+                            break
+                        }
+                    }
+                }
+
+                // Fallback: AppleScript activate
+                runAppleScript("""
+                tell application "\(ide.appName)"
+                    activate
+                end tell
+                tell application "System Events"
+                    set frontmost of process "\(ide.processName)" to true
+                end tell
+                """)
+                return
+            }
+        }
+
+        debugLog("No running JetBrains IDE found")
+    }
+
+    private static func activateCursor(cwd: String?) {
+        debugLog("Activating Cursor with cwd: \(cwd ?? "nil")")
+
+        // Try Cursor CLI first if cwd is available
+        if let cwd = cwd, !cwd.isEmpty {
+            let cursorPaths = [
+                "/usr/local/bin/cursor",
+                "/opt/homebrew/bin/cursor",
+                "/Applications/Cursor.app/Contents/Resources/app/bin/cursor"
+            ]
+
+            for path in cursorPaths {
+                if FileManager.default.fileExists(atPath: path) {
+                    debugLog("Running: \(path) \(cwd)")
+                    let task = Process()
+                    task.launchPath = path
+                    task.arguments = [cwd]
+                    task.standardOutput = FileHandle.nullDevice
+                    task.standardError = FileHandle.nullDevice
+                    do {
+                        try task.run()
+                        // Don't wait - just fire and forget
+                    } catch {
+                        debugLog("Cursor CLI failed: \(error)")
+                    }
+                    break
+                }
+            }
+        }
+
+        // Activate via AppleScript
+        runAppleScript("""
+        tell application "Cursor"
+            activate
+        end tell
+        tell application "System Events"
+            set frontmost of process "Cursor" to true
+        end tell
+        """)
+    }
+
+    private static func activateZed(cwd: String?) {
+        debugLog("Activating Zed with cwd: \(cwd ?? "nil")")
+
+        // Try Zed CLI first if cwd is available
+        if let cwd = cwd, !cwd.isEmpty {
+            let zedPaths = [
+                "/usr/local/bin/zed",
+                "/opt/homebrew/bin/zed",
+                "/Applications/Zed.app/Contents/MacOS/cli"
+            ]
+
+            for path in zedPaths {
+                if FileManager.default.fileExists(atPath: path) {
+                    debugLog("Running: \(path) \(cwd)")
+                    let task = Process()
+                    task.launchPath = path
+                    task.arguments = [cwd]
+                    task.standardOutput = FileHandle.nullDevice
+                    task.standardError = FileHandle.nullDevice
+                    do {
+                        try task.run()
+                        // Don't wait - just fire and forget
+                    } catch {
+                        debugLog("Zed CLI failed: \(error)")
+                    }
+                    break
+                }
+            }
+        }
+
+        // Activate via AppleScript
+        runAppleScript("""
+        tell application "Zed"
+            activate
+        end tell
+        tell application "System Events"
+            set frontmost of process "Zed" to true
         end tell
         """)
     }
