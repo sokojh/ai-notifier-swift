@@ -316,44 +316,10 @@ let isHookMode = hasStdinData || hasArgvData
 
 | CLI | 특이사항 |
 |-----|---------|
-| **Claude** | `hook_event_name`: Stop, Notification / `notification_type`: permission_prompt (idle_prompt is ignored) / ⚠️ **Stop hook은 래퍼 필수** (아래 참조) |
+| **Claude** | `hook_event_name`: Stop, Notification / `notification_type`: permission_prompt (idle_prompt is ignored) |
 | **Gemini** | 스트리밍 응답마다 hook 호출 → 디바운싱 필수 (`finishReason == "STOP"` 체크) |
 | **Codex** | TOML 설정 파일 사용, **`notify`는 루트 레벨**에 설정 (⚠️ `[notice]` 섹션 아님!) |
 | **OpenCode** | **플러그인 방식** - `@opencode-ai/plugin` SDK 사용. `~/.config/opencode/plugin/`에 배치. 이벤트: `session.idle`→complete, `session.error`→error, `permission.ask`→permission. 참고: [opencode-notifier](https://github.com/mohak34/opencode-notifier) |
-
-### ⚠️ Claude Code Stop Hook 래퍼 필수
-
-**문제:** ai-notifier의 첫 번째 인스턴스는 `app.run()`으로 백그라운드 실행되어 프로세스가 종료되지 않음 → Claude Code가 hook 완료를 기다리다 타임아웃 에러 발생
-
-**해결:** Stop hook에 bash 래퍼 사용하여 즉시 exit 0 반환
-
-```json
-// ~/.claude/settings.json
-{
-  "hooks": {
-    "Stop": [{
-      "hooks": [{
-        "type": "command",
-        "command": "bash -c '/Applications/ai-notifier.app/Contents/MacOS/ai-notifier & exit 0'"
-      }]
-    }],
-    "Notification": [{
-      "matcher": "permission_prompt",
-      "hooks": [{
-        "type": "command",
-        "command": "/Applications/ai-notifier.app/Contents/MacOS/ai-notifier"
-      }]
-    }]
-  }
-}
-```
-
-**동작 원리:**
-- `bash -c '... & exit 0'`: ai-notifier를 백그라운드(`&`)로 실행 후 bash는 즉시 종료
-- Claude Code: bash가 exit 0 반환 → hook 완료로 인식
-- ai-notifier: 백그라운드에서 정상 실행 → 알림 발송, 메뉴바 🔔 유지
-
-**Notification hook은 래퍼 불필요:** 이미 실행 중인 인스턴스가 있으면 빠르게 알림만 보내고 종료됨
 
 **테스트 명령어:**
 ```bash

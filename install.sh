@@ -157,10 +157,7 @@ if settings_path.exists():
         pass
 
 notifier_path = "/Applications/ai-notifier.app/Contents/MacOS/ai-notifier"
-# Stop hook: wrapper로 백그라운드 실행 (앱이 app.run()으로 blocking되어도 Claude Code에 즉시 반환)
-stop_hook_cmd = {"type": "command", "command": f"bash -c '{notifier_path} & exit 0'"}
-# Notification hook: 직접 실행 (빠르게 응답하고 종료)
-notification_hook_cmd = {"type": "command", "command": notifier_path}
+hook_cmd = {"type": "command", "command": notifier_path}
 
 if "hooks" not in settings:
     settings["hooks"] = {}
@@ -168,7 +165,7 @@ if "hooks" not in settings:
 # 기존 ai-notify 관련 hook 제거 후 새로 추가
 stop_hooks = [h for h in settings["hooks"].get("Stop", [])
               if "ai-notify" not in str(h) and "ai-notifier" not in str(h)]
-stop_hooks.append({"hooks": [stop_hook_cmd]})
+stop_hooks.append({"hooks": [hook_cmd]})
 settings["hooks"]["Stop"] = stop_hooks
 
 # Notification hooks - permission_prompt만 설정
@@ -177,7 +174,7 @@ notification_hooks = [
     if h.get("matcher") not in ("idle_prompt", "permission_prompt")
        and "ai-notify" not in str(h) and "ai-notifier" not in str(h)
 ]
-notification_hooks.append({"matcher": "permission_prompt", "hooks": [notification_hook_cmd]})
+notification_hooks.append({"matcher": "permission_prompt", "hooks": [hook_cmd]})
 settings["hooks"]["Notification"] = notification_hooks
 
 with open(settings_path, 'w') as f:
