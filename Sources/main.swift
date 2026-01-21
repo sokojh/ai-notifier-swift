@@ -4,13 +4,12 @@ import Darwin
 
 // MARK: - Process Detachment
 
-/// Detach from parent terminal to run as independent GUI process
-/// This fixes the issue where menu bar icon disappears when Terminal loses focus
+/// NOTE: setsid() was previously used here to detach from terminal,
+/// but it was breaking menu bar click events. Removed to fix the issue.
+/// The menu bar icon will still work without this.
 func detachFromTerminal() {
-    // Create a new session (detach from controlling terminal)
-    if setsid() == -1 {
-        debugLog("setsid() failed, continuing anyway")
-    }
+    // Intentionally empty - setsid() breaks NSMenu click handling
+    debugLog("detachFromTerminal: skipped (setsid breaks menu events)")
 }
 
 // MARK: - Background Mode

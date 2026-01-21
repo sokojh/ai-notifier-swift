@@ -17,24 +17,34 @@ class StatusBarController: NSObject {
     // MARK: - Setup
 
     func setup() {
-        guard statusItem == nil else { return }
+        guard statusItem == nil else {
+            debugLog("StatusBar: Already setup, skipping")
+            return
+        }
+
+        debugLog("StatusBar: Creating status item on thread \(Thread.isMainThread ? "main" : "background")")
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        debugLog("StatusBar: statusItem created = \(statusItem != nil)")
 
         if let button = statusItem?.button {
             // Use SF Symbol for the icon
             if let image = NSImage(systemSymbolName: "bell.badge", accessibilityDescription: "AI Notifier") {
                 image.isTemplate = true
                 button.image = image
+                debugLog("StatusBar: SF Symbol icon set")
             } else {
                 // Fallback to text if SF Symbol not available
                 button.title = "🔔"
+                debugLog("StatusBar: Fallback emoji icon set")
             }
             button.toolTip = "AI Notifier"
+        } else {
+            debugLog("StatusBar: ERROR - button is nil!")
         }
 
         setupMenu()
-        debugLog("StatusBar: Setup complete")
+        debugLog("StatusBar: Setup complete, menu = \(statusItem?.menu != nil)")
     }
 
     private func setupMenu() {
