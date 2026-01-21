@@ -172,6 +172,11 @@ class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
             if let info = terminalInfo {
                 debugLog("Terminal info: type=\(info.type), sessionId=\(info.sessionId ?? "nil"), tty=\(info.tty ?? "nil"), cwd=\(info.cwd ?? "nil")")
                 TerminalActivator.activate(info)
+
+                // Delete session file to prevent double activation
+                // (new app instance might also try to handle saved session)
+                try? FileManager.default.removeItem(atPath: "/tmp/.ai-notifier-last-session.json")
+                debugLog("Deleted session file to prevent double activation")
             } else {
                 debugLog("No terminal info in userInfo")
             }

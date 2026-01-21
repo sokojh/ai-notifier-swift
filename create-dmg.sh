@@ -12,7 +12,7 @@ NC='\033[0m'
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_NAME="AI Notifier"
 DMG_NAME="AI-Notifier"
-VERSION="1.0.5"
+VERSION="1.0.6"
 
 BUILD_DIR="$SCRIPT_DIR/.build"
 DMG_DIR="$SCRIPT_DIR/dmg-staging"
