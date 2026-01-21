@@ -13,7 +13,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_NAME="AI Notifier"
 BUNDLE_ID="com.sokojh.ai-notifier"
 EXECUTABLE_NAME="ai-notifier"
-VERSION="1.0.4"
+VERSION="1.0.5"
 MIN_MACOS="11.0"
 
 BUILD_DIR="$SCRIPT_DIR/.build"

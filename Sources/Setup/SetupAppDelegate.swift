@@ -21,25 +21,8 @@ class SetupAppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    func applicationDidBecomeActive(_ notification: Notification) {
-        debugLog("SetupAppDelegate: applicationDidBecomeActive")
-
-        // Check if this is a notification click (recent session file exists)
-        let lastSessionFile = "/tmp/.ai-notifier-last-session.json"
-        if FileManager.default.fileExists(atPath: lastSessionFile) {
-            if let attrs = try? FileManager.default.attributesOfItem(atPath: lastSessionFile),
-               let modDate = attrs[.modificationDate] as? Date,
-               Date().timeIntervalSince(modDate) < 60 {
-                if let data = FileManager.default.contents(atPath: lastSessionFile),
-                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: String] {
-                    debugLog("SetupAppDelegate: Found recent session, activating terminal")
-                    let terminalInfo = TerminalInfo.from(dictionary: json)
-                    TerminalActivator.activate(terminalInfo)
-                    // Don't exit - let setup continue
-                }
-            }
-        }
-    }
+    // NOTE: applicationDidBecomeActive removed - Setup mode should not activate terminals
+    // Terminal activation is handled by NotificationManager in background mode
 
     private func showLoadingWindow() {
         // Create a small loading window
