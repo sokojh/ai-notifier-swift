@@ -51,9 +51,18 @@ struct CLIHookInstaller {
             }
         }
 
-        // Create hook configuration
-        let hookConfig: [String: Any] = [
+        // Create hook configurations
+        // Stop hook: wrapper로 백그라운드 실행 (앱이 app.run()으로 blocking되어도 Claude Code에 즉시 반환)
+        let stopHookConfig: [String: Any] = [
             "matcher": "",
+            "hooks": [
+                ["type": "command", "command": "bash -c '\(notifierPath) & exit 0'"]
+            ]
+        ]
+
+        // Notification hook: 직접 실행 (빠르게 응답하고 종료)
+        let notificationHookConfig: [String: Any] = [
+            "matcher": "permission_prompt",
             "hooks": [
                 ["type": "command", "command": notifierPath]
             ]
@@ -63,12 +72,12 @@ struct CLIHookInstaller {
 
         // Add Stop hook
         var stopHooks = hooks["Stop"] as? [[String: Any]] ?? []
-        stopHooks.append(hookConfig)
+        stopHooks.append(stopHookConfig)
         hooks["Stop"] = stopHooks
 
         // Add Notification hook
         var notificationHooks = hooks["Notification"] as? [[String: Any]] ?? []
-        notificationHooks.append(hookConfig)
+        notificationHooks.append(notificationHookConfig)
         hooks["Notification"] = notificationHooks
 
         settings["hooks"] = hooks
