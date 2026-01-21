@@ -269,6 +269,44 @@ rm -f /tmp/.ai-notifier.pid
 
 ---
 
+### ⚠️ 두 가지 실행 환경 혼동 주의 (매우 중요!)
+
+**이 앱은 두 가지 완전히 다른 방식으로 실행됩니다. 개발/테스트 시 반드시 구분해야 합니다!**
+
+| 실행 방식 | 트리거 | 앱 경로 | 특징 |
+|-----------|--------|---------|------|
+| **Hook 모드** | CLI가 stdin으로 JSON 전달 | 설정된 hook 경로 | PID 체크 후 알림만 보내고 종료 가능 |
+| **Setup/User 모드** | 사용자가 앱 더블클릭 | `/Applications/ai-notifier.app` | GUI 표시, 설정 창, 메뉴바 아이콘 |
+
+**혼동 시나리오:**
+1. `.build/ai-notifier.app`으로 개발 중 테스트 → Hook이 `/Applications/ai-notifier.app` 호출 → 다른 앱 번들!
+2. Hook 모드에서 알림 발송 후 앱 종료 → 알림 클릭 시 앱 재실행 → 다른 프로세스!
+3. Setup 모드에서 `setActivationPolicy` 동적 변경 → 메뉴바 이벤트 깨짐!
+
+**테스트 원칙:**
+```bash
+# 반드시 /Applications에 설치된 앱으로 테스트
+./build.sh && cp -r .build/ai-notifier.app /Applications/
+
+# Hook 테스트 시에도 /Applications 경로 사용
+echo '{"hook_event_name":"Stop"}' | /Applications/ai-notifier.app/Contents/MacOS/ai-notifier
+
+# 현재 실행 중인 프로세스 경로 확인
+ps aux | grep ai-notifier | grep -v grep
+```
+
+**과거 버그 (수정됨):**
+- `.build/` 앱으로 백그라운드 실행 중 `/Applications/` 앱으로 알림 클릭 → 서로 다른 앱 번들로 delegate 콜백 못 받음
+- Setup 모드에서 `setActivationPolicy(.regular)` → `.accessory` 동적 변경 → 메뉴바 클릭 이벤트 깨짐
+- `setsid()` 호출로 터미널에서 분리 → NSMenu 이벤트 전달 실패
+
+**핵심 원칙:**
+1. **항상 같은 앱 번들 사용**: 개발/테스트 시에도 `/Applications/ai-notifier.app` 사용 권장
+2. **Setup 완료 후 앱 재시작**: `setActivationPolicy` 동적 변경 대신 `--background` 플래그로 재시작
+3. **setsid() 사용 금지**: macOS GUI 이벤트와 충돌
+
+---
+
 ### ⚠️ 신규 설치 유저 관점 필수
 
 **개발 시 항상 "처음 설치하는 유저" 관점에서 테스트할 것.**

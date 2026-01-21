@@ -191,34 +191,29 @@ func installHooksAndShowResult() {
             alert.addButton(withTitle: L10n.Button.ok)
             alert.runModal()
 
-            // Switch to background mode instead of exiting
-            // This allows the menu bar icon to remain visible for ntfy settings
-            debugLog("Setup complete, switching to background mode")
+            // Restart app in background mode
+            // Dynamic activation policy change from .regular to .accessory
+            // breaks menu bar click events, so we restart the app instead
+            debugLog("Setup complete, restarting in background mode")
 
-            // Check if another instance is already running
-            if ProcessManager.isAnotherInstanceRunning() {
-                debugLog("Another instance already running, exiting setup")
+            // Mark as configured (so next double-click doesn't run setup again)
+            let configuredFlag = NSString(string: "~/.ai-notifier-configured").expandingTildeInPath
+            try? "".write(toFile: configuredFlag, atomically: true, encoding: .utf8)
+            debugLog("Setup: Created configured flag")
+
+            // Get the app bundle path
+            let appPath = Bundle.main.bundlePath
+
+            // Launch new instance with special flag to skip setup
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                let task = Process()
+                task.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+                task.arguments = ["-a", appPath, "--args", "--background"]
+                try? task.run()
+
+                // Exit current setup instance
+                debugLog("Setup: Launching background instance and exiting")
                 exit(0)
-            }
-
-            // Write PID file and setup cleanup
-            ProcessManager.writePIDFile()
-            ProcessManager.setupCleanup()
-
-            let app = NSApplication.shared
-            app.setActivationPolicy(.accessory)  // Hide from dock
-
-            // Setup status bar icon
-            StatusBarController.shared.setup()
-
-            // Close all setup windows to transition to background mode
-            // runSetupMode()의 app.run()이 이미 실행 중이므로
-            // 창만 닫으면 백그라운드 모드로 자동 전환됨
-            DispatchQueue.main.async {
-                for window in NSApp.windows {
-                    window.close()
-                }
-                debugLog("Setup windows closed, running in background mode")
             }
         }
     }

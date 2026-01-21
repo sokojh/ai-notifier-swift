@@ -65,6 +65,13 @@ func main() {
         return
     }
 
+    // Check for background mode (launched after setup completion)
+    if CommandLine.arguments.contains("--background") {
+        debugLog("Starting in background mode (post-setup)")
+        runBackgroundMode()
+        return
+    }
+
     // Check if running as hook
     let hookMode = AppController.isHookMode()
     let isHookMode = hookMode.hasStdin || hookMode.hasArgv
