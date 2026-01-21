@@ -21,7 +21,7 @@ echo "=== 4. 스테이플링 ==="
 xcrun stapler staple build/AI-Notifier.dmg
 
 echo "=== 5. 릴리즈 DMG 교체 ==="
-gh release upload v1.0.4 build/AI-Notifier.dmg --clobber
+gh release upload v1.0.5 build/AI-Notifier.dmg --clobber
 
 echo ""
-echo "✅ 완료! https://github.com/sokojh/ai-notifier-swift/releases/tag/v1.0.4"
+echo "✅ 완료! https://github.com/sokojh/ai-notifier-swift/releases/tag/v1.0.5"

@@ -46,6 +46,44 @@ jobs:
           chmod +x build.sh
           ./build.sh
 
+      # ========== Apple Code Signing & Notarization ==========
+
+      - name: Import Code Signing Certificate
+        if: steps.check_release.outputs.exists == 'false'
+        env:
+          CERT_BASE64: ${{ secrets.APPLE_DEVELOPER_ID_APPLICATION_CERT_BASE64 }}
+          CERT_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_APPLICATION_CERT_PASSWORD }}
+        run: |
+          # Create temporary keychain
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+          KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          # Import certificate
+          echo "$CERT_BASE64" | base64 --decode > $RUNNER_TEMP/certificate.p12
+          security import $RUNNER_TEMP/certificate.p12 -P "$CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+
+          # Allow codesign to access keychain
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          # Verify certificate
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+
+      - name: Code Sign App (Hardened Runtime)
+        if: steps.check_release.outputs.exists == 'false'
+        run: |
+          codesign --force --options runtime \
+            --sign "Developer ID Application: Jiho Kim (T4BG6AUM72)" \
+            --timestamp \
+            .build/ai-notifier.app
+
+          # Verify signature
+          codesign --verify --verbose .build/ai-notifier.app
+
       - name: Create ZIP archive
         if: steps.check_release.outputs.exists == 'false'
         run: |
@@ -62,12 +100,50 @@ jobs:
           cp -r .build/ai-notifier.app dmg-staging/
           ln -s /Applications dmg-staging/Applications
 
-          # Create DMG (version-less for /releases/latest/download/ compatibility)
-          hdiutil create -volname "AI Notifier" -srcfolder dmg-staging -ov -format UDZO "AI-Notifier.dmg"
+          # Create DMG
+          hdiutil create -volname "AINotifier" -srcfolder dmg-staging -ov -format UDZO "AI-Notifier.dmg"
 
-          # Cleanup
+          # Cleanup staging
           rm -rf dmg-staging
           ls -la *.dmg
+
+      - name: Sign DMG
+        if: steps.check_release.outputs.exists == 'false'
+        run: |
+          codesign --force \
+            --sign "Developer ID Application: Jiho Kim (T4BG6AUM72)" \
+            --timestamp \
+            "AI-Notifier.dmg"
+
+          # Verify
+          codesign --verify --verbose "AI-Notifier.dmg"
+
+      - name: Notarize DMG
+        if: steps.check_release.outputs.exists == 'false'
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+        run: |
+          # Submit for notarization
+          xcrun notarytool submit "AI-Notifier.dmg" \
+            --apple-id "$APPLE_ID" \
+            --team-id "$APPLE_TEAM_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+            --wait
+
+          # Staple the notarization ticket
+          xcrun stapler staple "AI-Notifier.dmg"
+
+          # Verify stapling
+          xcrun stapler validate "AI-Notifier.dmg"
+
+      - name: Cleanup Keychain
+        if: always()
+        run: |
+          security delete-keychain $RUNNER_TEMP/app-signing.keychain-db 2>/dev/null || true
+
+      # ========== Release ==========
 
       - name: Generate release notes
         if: steps.check_release.outputs.exists == 'false'
@@ -93,6 +169,8 @@ jobs:
           echo "1. Download \`AI-Notifier.dmg\`" >> release_notes.md
           echo "2. Open the DMG and drag \`ai-notifier.app\` to Applications" >> release_notes.md
           echo "3. Double-click to run and complete setup" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "> **Note**: This release is signed and notarized by Apple." >> release_notes.md
           echo "" >> release_notes.md
           echo "### Option 2: ZIP" >> release_notes.md
           echo "1. Download \`ai-notifier-${{ steps.version.outputs.version }}.zip\`" >> release_notes.md
