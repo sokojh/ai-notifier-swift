@@ -145,7 +145,9 @@ class NtfySettingsView: NSView {
         testStatusLabel.stringValue = L10n.Settings.testing
         testStatusLabel.textColor = .secondaryLabelColor
 
-        NtfyClient.testConnection(server: server, topic: topic) { [weak self] result in
+        let auth = AppConfig.load().ntfy?.auth
+
+        NtfyClient.testConnection(server: server, topic: topic, auth: auth) { [weak self] result in
             DispatchQueue.main.async {
                 guard let self = self else { return }
                 // Only re-enable if checkbox is still on

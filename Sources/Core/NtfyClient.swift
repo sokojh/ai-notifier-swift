@@ -136,6 +136,7 @@ struct NtfyClient {
     static func testConnection(
         server: String,
         topic: String,
+        auth: NtfyAuth?,
         completion: @escaping (Result<Void, NtfyError>) -> Void
     ) {
         let urlString = "\(server)/\(topic)"
@@ -152,6 +153,19 @@ struct NtfyClient {
         request.setValue("3", forHTTPHeaderField: "Priority")
         request.httpBody = L10n.NtfyTest.successMessage.data(using: .utf8)
         request.timeoutInterval = 10
+
+        // Authentication (optional)
+        if let auth = auth {
+            if auth.type == "bearer", let token = auth.token {
+                request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            } else if auth.type == "basic", let username = auth.username, let password = auth.password {
+                let credentials = "\(username):\(password)"
+                if let data = credentials.data(using: .utf8) {
+                    let base64 = data.base64EncodedString()
+                    request.setValue("Basic \(base64)", forHTTPHeaderField: "Authorization")
+                }
+            }
+        }
 
         let task = URLSession.shared.dataTask(with: request) { data, response, error in
             if let error = error {
