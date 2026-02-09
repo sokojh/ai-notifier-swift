@@ -275,11 +275,17 @@ class SettingsWindowController: NSWindowController {
         }
 
         // Get settings from view
-        let ntfySettings = ntfyView.createSettings()
+        let ntfySettingsFromView = ntfyView.createSettings()
 
-        // Save config
+        // Save config (preserve existing auth because settings UI does not edit auth)
         var config = AppConfig.load()
-        config.ntfy = ntfySettings
+        let existingAuth = config.ntfy?.auth
+        if var ntfySettings = ntfySettingsFromView {
+            ntfySettings.auth = existingAuth
+            config.ntfy = ntfySettings
+        } else {
+            config.ntfy = nil
+        }
 
         do {
             try config.save()
@@ -292,7 +298,7 @@ class SettingsWindowController: NSWindowController {
             if let window = window {
                 let alert = NSAlert()
                 alert.messageText = L10n.Alert.settingsSaved
-                alert.informativeText = ntfySettings != nil
+                alert.informativeText = ntfySettingsFromView != nil
                     ? L10n.Alert.ntfyEnabled
                     : L10n.Alert.ntfyDisabled
                 alert.alertStyle = .informational
