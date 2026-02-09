@@ -179,6 +179,9 @@ cat > ~/.config/ai-notifier/config.json << 'EOF'
 EOF
 ```
 
+> **Note:** Use an `https://` server URL whenever possible.  
+> For self-hosted `http://` endpoints, macOS App Transport Security (ATS) may block requests and cause network errors.
+
 ### Configuration Options
 
 | Option | Description | Default |
@@ -190,6 +193,8 @@ EOF
 | `auth` | Authentication info (optional) | `null` |
 
 ### Self-hosted ntfy Authentication
+
+If your topic requires authentication, make sure `auth` is configured in `~/.config/ai-notifier/config.json`; otherwise requests may return `401/403`.
 
 **Bearer Token:**
 ```json
